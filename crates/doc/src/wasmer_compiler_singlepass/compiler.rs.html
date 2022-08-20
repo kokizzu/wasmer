@@ -354,6 +354,12 @@
 <span id="352">352</span>
 <span id="353">353</span>
 <span id="354">354</span>
+<span id="355">355</span>
+<span id="356">356</span>
+<span id="357">357</span>
+<span id="358">358</span>
+<span id="359">359</span>
+<span id="360">360</span>
 </pre><pre class="rust"><code><span class="doccomment">//! Support for compiling with Singlepass.</span>
 <span class="comment">// Allow unused imports while developing.</span>
 <span class="attribute">#![<span class="ident">allow</span>(<span class="ident">unused_imports</span>, <span class="ident">dead_code</span>)]</span>
@@ -376,17 +382,22 @@
 <span class="kw">use</span> <span class="ident">rayon::prelude</span>::{<span class="ident">IntoParallelIterator</span>, <span class="ident">ParallelIterator</span>};
 <span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 <span class="kw">use</span> <span class="ident">wasmer_compiler</span>::{
-    <span class="ident">Architecture</span>, <span class="ident">CallingConvention</span>, <span class="ident">Compilation</span>, <span class="ident">CompileError</span>, <span class="ident">CompileModuleInfo</span>,
-    <span class="ident">CompiledFunction</span>, <span class="ident">Compiler</span>, <span class="ident">CompilerConfig</span>, <span class="ident">CpuFeature</span>, <span class="ident">Dwarf</span>, <span class="ident">FunctionBinaryReader</span>,
-    <span class="ident">FunctionBody</span>, <span class="ident">FunctionBodyData</span>, <span class="ident">MiddlewareBinaryReader</span>, <span class="ident">ModuleMiddleware</span>,
-    <span class="ident">ModuleMiddlewareChain</span>, <span class="ident">ModuleTranslationState</span>, <span class="ident">OperatingSystem</span>, <span class="ident">SectionIndex</span>, <span class="ident">Target</span>,
-    <span class="ident">TrapInformation</span>,
+    <span class="ident">Compiler</span>, <span class="ident">CompilerConfig</span>, <span class="ident">FunctionBinaryReader</span>, <span class="ident">FunctionBodyData</span>, <span class="ident">MiddlewareBinaryReader</span>,
+    <span class="ident">ModuleMiddleware</span>, <span class="ident">ModuleMiddlewareChain</span>, <span class="ident">ModuleTranslationState</span>,
 };
 <span class="kw">use</span> <span class="ident">wasmer_types::entity</span>::{<span class="ident">EntityRef</span>, <span class="ident">PrimaryMap</span>};
 <span class="kw">use</span> <span class="ident">wasmer_types</span>::{
-    <span class="ident">FunctionIndex</span>, <span class="ident">FunctionType</span>, <span class="ident">LocalFunctionIndex</span>, <span class="ident">MemoryIndex</span>, <span class="ident">ModuleInfo</span>, <span class="ident">TableIndex</span>, <span class="ident">TrapCode</span>,
-    <span class="ident">VMOffsets</span>,
+    <span class="ident">Architecture</span>, <span class="ident">CallingConvention</span>, <span class="ident">Compilation</span>, <span class="ident">CompileError</span>, <span class="ident">CompileModuleInfo</span>,
+    <span class="ident">CompiledFunction</span>, <span class="ident">CpuFeature</span>, <span class="ident">Dwarf</span>, <span class="ident">FunctionBody</span>, <span class="ident">FunctionIndex</span>, <span class="ident">FunctionType</span>,
+    <span class="ident">LocalFunctionIndex</span>, <span class="ident">MemoryIndex</span>, <span class="ident">ModuleInfo</span>, <span class="ident">OperatingSystem</span>, <span class="ident">SectionIndex</span>, <span class="ident">TableIndex</span>, <span class="ident">Target</span>,
+    <span class="ident">TrapCode</span>, <span class="ident">TrapInformation</span>, <span class="ident">VMOffsets</span>,
 };
+
+<span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">CodegenError</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">CompileError</span> {
+    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">err</span>: <span class="ident">CodegenError</span>) -&gt; <span class="self">Self</span> {
+        <span class="ident"><span class="self">Self</span>::Codegen</span>(<span class="ident">err</span>.<span class="ident">message</span>)
+    }
+}
 
 <span class="doccomment">/// A compiler that compiles a WebAssembly module with Singlepass.</span>
 <span class="doccomment">/// It does the compilation in one pass</span>
@@ -445,14 +456,15 @@
             }
             <span class="kw">_</span> =&gt; <span class="prelude-val">None</span>,
         };
-        <span class="kw">if</span> <span class="ident">compile_info</span>.<span class="ident">features</span>.<span class="ident">multi_value</span> {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">CompileError::UnsupportedFeature</span>(<span class="string">&quot;multivalue&quot;</span>.<span class="ident">to_string</span>()));
-        }
         <span class="kw">let</span> <span class="ident">calling_convention</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">target</span>.<span class="ident">triple</span>().<span class="ident">default_calling_convention</span>() {
             <span class="prelude-val">Ok</span>(<span class="ident">CallingConvention::WindowsFastcall</span>) =&gt; <span class="ident">CallingConvention::WindowsFastcall</span>,
             <span class="prelude-val">Ok</span>(<span class="ident">CallingConvention::SystemV</span>) =&gt; <span class="ident">CallingConvention::SystemV</span>,
             <span class="prelude-val">Ok</span>(<span class="ident">CallingConvention::AppleAarch64</span>) =&gt; <span class="ident">CallingConvention::AppleAarch64</span>,
-            <span class="kw">_</span> =&gt; <span class="macro">panic!</span>(<span class="string">&quot;Unsupported Calling convention for Singlepass compiler&quot;</span>),
+            <span class="kw">_</span> =&gt; {
+                <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">CompileError::UnsupportedTarget</span>(
+                    <span class="string">&quot;Unsupported Calling convention for Singlepass compiler&quot;</span>.<span class="ident">to_string</span>(),
+                ))
+            }
         };
 
         <span class="comment">// Generate the frametable</span>
@@ -542,7 +554,7 @@
                             <span class="ident">generator</span>.<span class="ident">feed_operator</span>(<span class="ident">op</span>).<span class="ident">map_err</span>(<span class="ident">to_compile_error</span>)<span class="question-mark">?</span>;
                         }
 
-                        <span class="prelude-val">Ok</span>(<span class="ident">generator</span>.<span class="ident">finalize</span>(<span class="ident">input</span>))
+                        <span class="ident">generator</span>.<span class="ident">finalize</span>(<span class="ident">input</span>).<span class="ident">map_err</span>(<span class="ident">to_compile_error</span>)
                     }
                     <span class="ident">Architecture::Aarch64</span>(<span class="kw">_</span>) =&gt; {
                         <span class="kw">let</span> <span class="ident">machine</span> <span class="op">=</span> <span class="ident">MachineARM64::new</span>();
@@ -564,7 +576,7 @@
                             <span class="ident">generator</span>.<span class="ident">feed_operator</span>(<span class="ident">op</span>).<span class="ident">map_err</span>(<span class="ident">to_compile_error</span>)<span class="question-mark">?</span>;
                         }
 
-                        <span class="prelude-val">Ok</span>(<span class="ident">generator</span>.<span class="ident">finalize</span>(<span class="ident">input</span>))
+                        <span class="ident">generator</span>.<span class="ident">finalize</span>(<span class="ident">input</span>).<span class="ident">map_err</span>(<span class="ident">to_compile_error</span>)
                     }
                     <span class="kw">_</span> =&gt; <span class="macro">unimplemented!</span>(),
                 }
@@ -666,8 +678,8 @@
     <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
     <span class="kw">use</span> <span class="ident">std::str::FromStr</span>;
     <span class="kw">use</span> <span class="ident">target_lexicon::triple</span>;
-    <span class="kw">use</span> <span class="ident">wasmer_compiler</span>::{<span class="ident">CpuFeature</span>, <span class="ident">Features</span>, <span class="ident">Triple</span>};
-    <span class="kw">use</span> <span class="ident">wasmer_types</span>::{<span class="ident">MemoryStyle</span>, <span class="ident">TableStyle</span>};
+    <span class="kw">use</span> <span class="ident">wasmer_compiler::Features</span>;
+    <span class="kw">use</span> <span class="ident">wasmer_types</span>::{<span class="ident">CpuFeature</span>, <span class="ident">MemoryStyle</span>, <span class="ident">TableStyle</span>, <span class="ident">Triple</span>};
 
     <span class="kw">fn</span> <span class="ident">dummy_compilation_ingredients</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>() -&gt; (
         <span class="ident">CompileModuleInfo</span>,
@@ -676,7 +688,7 @@
     ) {
         <span class="kw">let</span> <span class="ident">compile_info</span> <span class="op">=</span> <span class="ident">CompileModuleInfo</span> {
             <span class="ident">features</span>: <span class="ident">Features::new</span>(),
-            <span class="ident">module</span>: <span class="ident">Arc::new</span>(<span class="ident">ModuleInfo::new</span>()),
+            <span class="ident">module</span>: <span class="ident">ModuleInfo::new</span>(),
             <span class="ident">memory_styles</span>: <span class="ident">PrimaryMap</span>::<span class="op">&lt;</span><span class="ident">MemoryIndex</span>, <span class="ident">MemoryStyle</span><span class="op">&gt;</span><span class="ident">::new</span>(),
             <span class="ident">table_styles</span>: <span class="ident">PrimaryMap</span>::<span class="op">&lt;</span><span class="ident">TableIndex</span>, <span class="ident">TableStyle</span><span class="op">&gt;</span><span class="ident">::new</span>(),
         };

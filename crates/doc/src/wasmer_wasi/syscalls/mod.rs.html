@@ -5627,6 +5627,8 @@
 <span id="5620">5620</span>
 <span id="5621">5621</span>
 <span id="5622">5622</span>
+<span id="5623">5623</span>
+<span id="5624">5624</span>
 </pre><pre class="rust"><code><span class="attribute">#![<span class="ident">allow</span>(<span class="ident">unused</span>, <span class="ident">clippy::too_many_arguments</span>, <span class="ident">clippy::cognitive_complexity</span>)]</span>
 
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">types</span> {
@@ -5647,7 +5649,9 @@
 
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">legacy</span>;
 <span class="comment">//pub mod wasi;</span>
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;wasix&quot;</span>)]</span>
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">wasix32</span>;
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;wasix&quot;</span>)]</span>
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">wasix64</span>;
 
 <span class="kw">use</span> <span class="ident"><span class="self">self</span>::types</span>::<span class="kw-2">*</span>;

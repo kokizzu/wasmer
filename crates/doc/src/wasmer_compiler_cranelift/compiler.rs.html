@@ -832,13 +832,13 @@
             .<span class="ident">into_iter</span>()
             .<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">PrimaryMap</span><span class="op">&lt;</span><span class="ident">FunctionIndex</span>, <span class="ident">FunctionBody</span><span class="op">&gt;</span><span class="op">&gt;</span>();
 
-        <span class="prelude-val">Ok</span>(<span class="ident">Compilation::new</span>(
-            <span class="ident">functions</span>.<span class="ident">into_iter</span>().<span class="ident">collect</span>(),
+        <span class="prelude-val">Ok</span>(<span class="ident">Compilation</span> {
+            <span class="ident">functions</span>: <span class="ident">functions</span>.<span class="ident">into_iter</span>().<span class="ident">collect</span>(),
             <span class="ident">custom_sections</span>,
             <span class="ident">function_call_trampolines</span>,
             <span class="ident">dynamic_function_trampolines</span>,
-            <span class="ident">dwarf</span>,
-        ))
+            <span class="ident">debug</span>: <span class="ident">dwarf</span>,
+        })
     }
 }
 
@@ -882,7 +882,7 @@
     <span class="kw">match</span> <span class="ident">trap</span> {
         <span class="ident">ir::TrapCode::StackOverflow</span> =&gt; <span class="ident">TrapCode::StackOverflow</span>,
         <span class="ident">ir::TrapCode::HeapOutOfBounds</span> =&gt; <span class="ident">TrapCode::HeapAccessOutOfBounds</span>,
-        <span class="ident">ir::TrapCode::HeapMisaligned</span> =&gt; <span class="ident">TrapCode::HeapMisaligned</span>,
+        <span class="ident">ir::TrapCode::HeapMisaligned</span> =&gt; <span class="ident">TrapCode::UnalignedAtomic</span>,
         <span class="ident">ir::TrapCode::TableOutOfBounds</span> =&gt; <span class="ident">TrapCode::TableAccessOutOfBounds</span>,
         <span class="ident">ir::TrapCode::IndirectCallToNull</span> =&gt; <span class="ident">TrapCode::IndirectCallToNull</span>,
         <span class="ident">ir::TrapCode::BadSignature</span> =&gt; <span class="ident">TrapCode::BadSignature</span>,

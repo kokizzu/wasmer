@@ -1,0 +1,1354 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `lib/wasi/src/bindings/wasix_http_client_v1.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>wasix_http_client_v1.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../../normalize.css"><link rel="stylesheet" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../../ayu.css" disabled><link rel="stylesheet" href="../../../dark.css" disabled><link rel="stylesheet" href="../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../storage.js"></script><script defer src="../../../source-script.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../main.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="icon" href="https://wasmer.io/images/icons/favicon-32x32.png"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button><a class="sidebar-logo" href="../../../wasmer_wasix/index.html"><div class="logo-container"><img src="https://github.com/wasmerio.png?size=200" alt="logo"></div></a><h2 class="location"></h2></nav><nav class="sidebar"><a class="sidebar-logo" href="../../../wasmer_wasix/index.html"><div class="logo-container">
+                    <img src="https://github.com/wasmerio.png?size=200" alt="logo"></div></a></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../../../wasmer_wasix/index.html">
+                        <img src="https://github.com/wasmerio.png?size=200" alt="logo"></a><nav class="sub"><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><button type="button">?</button></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../wheel.svg"></a></div></div></form></nav></div><section id="main-content" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">1</span>
+<span id="2">2</span>
+<span id="3">3</span>
+<span id="4">4</span>
+<span id="5">5</span>
+<span id="6">6</span>
+<span id="7">7</span>
+<span id="8">8</span>
+<span id="9">9</span>
+<span id="10">10</span>
+<span id="11">11</span>
+<span id="12">12</span>
+<span id="13">13</span>
+<span id="14">14</span>
+<span id="15">15</span>
+<span id="16">16</span>
+<span id="17">17</span>
+<span id="18">18</span>
+<span id="19">19</span>
+<span id="20">20</span>
+<span id="21">21</span>
+<span id="22">22</span>
+<span id="23">23</span>
+<span id="24">24</span>
+<span id="25">25</span>
+<span id="26">26</span>
+<span id="27">27</span>
+<span id="28">28</span>
+<span id="29">29</span>
+<span id="30">30</span>
+<span id="31">31</span>
+<span id="32">32</span>
+<span id="33">33</span>
+<span id="34">34</span>
+<span id="35">35</span>
+<span id="36">36</span>
+<span id="37">37</span>
+<span id="38">38</span>
+<span id="39">39</span>
+<span id="40">40</span>
+<span id="41">41</span>
+<span id="42">42</span>
+<span id="43">43</span>
+<span id="44">44</span>
+<span id="45">45</span>
+<span id="46">46</span>
+<span id="47">47</span>
+<span id="48">48</span>
+<span id="49">49</span>
+<span id="50">50</span>
+<span id="51">51</span>
+<span id="52">52</span>
+<span id="53">53</span>
+<span id="54">54</span>
+<span id="55">55</span>
+<span id="56">56</span>
+<span id="57">57</span>
+<span id="58">58</span>
+<span id="59">59</span>
+<span id="60">60</span>
+<span id="61">61</span>
+<span id="62">62</span>
+<span id="63">63</span>
+<span id="64">64</span>
+<span id="65">65</span>
+<span id="66">66</span>
+<span id="67">67</span>
+<span id="68">68</span>
+<span id="69">69</span>
+<span id="70">70</span>
+<span id="71">71</span>
+<span id="72">72</span>
+<span id="73">73</span>
+<span id="74">74</span>
+<span id="75">75</span>
+<span id="76">76</span>
+<span id="77">77</span>
+<span id="78">78</span>
+<span id="79">79</span>
+<span id="80">80</span>
+<span id="81">81</span>
+<span id="82">82</span>
+<span id="83">83</span>
+<span id="84">84</span>
+<span id="85">85</span>
+<span id="86">86</span>
+<span id="87">87</span>
+<span id="88">88</span>
+<span id="89">89</span>
+<span id="90">90</span>
+<span id="91">91</span>
+<span id="92">92</span>
+<span id="93">93</span>
+<span id="94">94</span>
+<span id="95">95</span>
+<span id="96">96</span>
+<span id="97">97</span>
+<span id="98">98</span>
+<span id="99">99</span>
+<span id="100">100</span>
+<span id="101">101</span>
+<span id="102">102</span>
+<span id="103">103</span>
+<span id="104">104</span>
+<span id="105">105</span>
+<span id="106">106</span>
+<span id="107">107</span>
+<span id="108">108</span>
+<span id="109">109</span>
+<span id="110">110</span>
+<span id="111">111</span>
+<span id="112">112</span>
+<span id="113">113</span>
+<span id="114">114</span>
+<span id="115">115</span>
+<span id="116">116</span>
+<span id="117">117</span>
+<span id="118">118</span>
+<span id="119">119</span>
+<span id="120">120</span>
+<span id="121">121</span>
+<span id="122">122</span>
+<span id="123">123</span>
+<span id="124">124</span>
+<span id="125">125</span>
+<span id="126">126</span>
+<span id="127">127</span>
+<span id="128">128</span>
+<span id="129">129</span>
+<span id="130">130</span>
+<span id="131">131</span>
+<span id="132">132</span>
+<span id="133">133</span>
+<span id="134">134</span>
+<span id="135">135</span>
+<span id="136">136</span>
+<span id="137">137</span>
+<span id="138">138</span>
+<span id="139">139</span>
+<span id="140">140</span>
+<span id="141">141</span>
+<span id="142">142</span>
+<span id="143">143</span>
+<span id="144">144</span>
+<span id="145">145</span>
+<span id="146">146</span>
+<span id="147">147</span>
+<span id="148">148</span>
+<span id="149">149</span>
+<span id="150">150</span>
+<span id="151">151</span>
+<span id="152">152</span>
+<span id="153">153</span>
+<span id="154">154</span>
+<span id="155">155</span>
+<span id="156">156</span>
+<span id="157">157</span>
+<span id="158">158</span>
+<span id="159">159</span>
+<span id="160">160</span>
+<span id="161">161</span>
+<span id="162">162</span>
+<span id="163">163</span>
+<span id="164">164</span>
+<span id="165">165</span>
+<span id="166">166</span>
+<span id="167">167</span>
+<span id="168">168</span>
+<span id="169">169</span>
+<span id="170">170</span>
+<span id="171">171</span>
+<span id="172">172</span>
+<span id="173">173</span>
+<span id="174">174</span>
+<span id="175">175</span>
+<span id="176">176</span>
+<span id="177">177</span>
+<span id="178">178</span>
+<span id="179">179</span>
+<span id="180">180</span>
+<span id="181">181</span>
+<span id="182">182</span>
+<span id="183">183</span>
+<span id="184">184</span>
+<span id="185">185</span>
+<span id="186">186</span>
+<span id="187">187</span>
+<span id="188">188</span>
+<span id="189">189</span>
+<span id="190">190</span>
+<span id="191">191</span>
+<span id="192">192</span>
+<span id="193">193</span>
+<span id="194">194</span>
+<span id="195">195</span>
+<span id="196">196</span>
+<span id="197">197</span>
+<span id="198">198</span>
+<span id="199">199</span>
+<span id="200">200</span>
+<span id="201">201</span>
+<span id="202">202</span>
+<span id="203">203</span>
+<span id="204">204</span>
+<span id="205">205</span>
+<span id="206">206</span>
+<span id="207">207</span>
+<span id="208">208</span>
+<span id="209">209</span>
+<span id="210">210</span>
+<span id="211">211</span>
+<span id="212">212</span>
+<span id="213">213</span>
+<span id="214">214</span>
+<span id="215">215</span>
+<span id="216">216</span>
+<span id="217">217</span>
+<span id="218">218</span>
+<span id="219">219</span>
+<span id="220">220</span>
+<span id="221">221</span>
+<span id="222">222</span>
+<span id="223">223</span>
+<span id="224">224</span>
+<span id="225">225</span>
+<span id="226">226</span>
+<span id="227">227</span>
+<span id="228">228</span>
+<span id="229">229</span>
+<span id="230">230</span>
+<span id="231">231</span>
+<span id="232">232</span>
+<span id="233">233</span>
+<span id="234">234</span>
+<span id="235">235</span>
+<span id="236">236</span>
+<span id="237">237</span>
+<span id="238">238</span>
+<span id="239">239</span>
+<span id="240">240</span>
+<span id="241">241</span>
+<span id="242">242</span>
+<span id="243">243</span>
+<span id="244">244</span>
+<span id="245">245</span>
+<span id="246">246</span>
+<span id="247">247</span>
+<span id="248">248</span>
+<span id="249">249</span>
+<span id="250">250</span>
+<span id="251">251</span>
+<span id="252">252</span>
+<span id="253">253</span>
+<span id="254">254</span>
+<span id="255">255</span>
+<span id="256">256</span>
+<span id="257">257</span>
+<span id="258">258</span>
+<span id="259">259</span>
+<span id="260">260</span>
+<span id="261">261</span>
+<span id="262">262</span>
+<span id="263">263</span>
+<span id="264">264</span>
+<span id="265">265</span>
+<span id="266">266</span>
+<span id="267">267</span>
+<span id="268">268</span>
+<span id="269">269</span>
+<span id="270">270</span>
+<span id="271">271</span>
+<span id="272">272</span>
+<span id="273">273</span>
+<span id="274">274</span>
+<span id="275">275</span>
+<span id="276">276</span>
+<span id="277">277</span>
+<span id="278">278</span>
+<span id="279">279</span>
+<span id="280">280</span>
+<span id="281">281</span>
+<span id="282">282</span>
+<span id="283">283</span>
+<span id="284">284</span>
+<span id="285">285</span>
+<span id="286">286</span>
+<span id="287">287</span>
+<span id="288">288</span>
+<span id="289">289</span>
+<span id="290">290</span>
+<span id="291">291</span>
+<span id="292">292</span>
+<span id="293">293</span>
+<span id="294">294</span>
+<span id="295">295</span>
+<span id="296">296</span>
+<span id="297">297</span>
+<span id="298">298</span>
+<span id="299">299</span>
+<span id="300">300</span>
+<span id="301">301</span>
+<span id="302">302</span>
+<span id="303">303</span>
+<span id="304">304</span>
+<span id="305">305</span>
+<span id="306">306</span>
+<span id="307">307</span>
+<span id="308">308</span>
+<span id="309">309</span>
+<span id="310">310</span>
+<span id="311">311</span>
+<span id="312">312</span>
+<span id="313">313</span>
+<span id="314">314</span>
+<span id="315">315</span>
+<span id="316">316</span>
+<span id="317">317</span>
+<span id="318">318</span>
+<span id="319">319</span>
+<span id="320">320</span>
+<span id="321">321</span>
+<span id="322">322</span>
+<span id="323">323</span>
+<span id="324">324</span>
+<span id="325">325</span>
+<span id="326">326</span>
+<span id="327">327</span>
+<span id="328">328</span>
+<span id="329">329</span>
+<span id="330">330</span>
+<span id="331">331</span>
+<span id="332">332</span>
+<span id="333">333</span>
+<span id="334">334</span>
+<span id="335">335</span>
+<span id="336">336</span>
+<span id="337">337</span>
+<span id="338">338</span>
+<span id="339">339</span>
+<span id="340">340</span>
+<span id="341">341</span>
+<span id="342">342</span>
+<span id="343">343</span>
+<span id="344">344</span>
+<span id="345">345</span>
+<span id="346">346</span>
+<span id="347">347</span>
+<span id="348">348</span>
+<span id="349">349</span>
+<span id="350">350</span>
+<span id="351">351</span>
+<span id="352">352</span>
+<span id="353">353</span>
+<span id="354">354</span>
+<span id="355">355</span>
+<span id="356">356</span>
+<span id="357">357</span>
+<span id="358">358</span>
+<span id="359">359</span>
+<span id="360">360</span>
+<span id="361">361</span>
+<span id="362">362</span>
+<span id="363">363</span>
+<span id="364">364</span>
+<span id="365">365</span>
+<span id="366">366</span>
+<span id="367">367</span>
+<span id="368">368</span>
+<span id="369">369</span>
+<span id="370">370</span>
+<span id="371">371</span>
+<span id="372">372</span>
+<span id="373">373</span>
+<span id="374">374</span>
+<span id="375">375</span>
+<span id="376">376</span>
+<span id="377">377</span>
+<span id="378">378</span>
+<span id="379">379</span>
+<span id="380">380</span>
+<span id="381">381</span>
+<span id="382">382</span>
+<span id="383">383</span>
+<span id="384">384</span>
+<span id="385">385</span>
+<span id="386">386</span>
+<span id="387">387</span>
+<span id="388">388</span>
+<span id="389">389</span>
+<span id="390">390</span>
+<span id="391">391</span>
+<span id="392">392</span>
+<span id="393">393</span>
+<span id="394">394</span>
+<span id="395">395</span>
+<span id="396">396</span>
+<span id="397">397</span>
+<span id="398">398</span>
+<span id="399">399</span>
+<span id="400">400</span>
+<span id="401">401</span>
+<span id="402">402</span>
+<span id="403">403</span>
+<span id="404">404</span>
+<span id="405">405</span>
+<span id="406">406</span>
+<span id="407">407</span>
+<span id="408">408</span>
+<span id="409">409</span>
+<span id="410">410</span>
+<span id="411">411</span>
+<span id="412">412</span>
+<span id="413">413</span>
+<span id="414">414</span>
+<span id="415">415</span>
+<span id="416">416</span>
+<span id="417">417</span>
+<span id="418">418</span>
+<span id="419">419</span>
+<span id="420">420</span>
+<span id="421">421</span>
+<span id="422">422</span>
+<span id="423">423</span>
+<span id="424">424</span>
+<span id="425">425</span>
+<span id="426">426</span>
+<span id="427">427</span>
+<span id="428">428</span>
+<span id="429">429</span>
+<span id="430">430</span>
+<span id="431">431</span>
+<span id="432">432</span>
+<span id="433">433</span>
+<span id="434">434</span>
+<span id="435">435</span>
+<span id="436">436</span>
+<span id="437">437</span>
+<span id="438">438</span>
+<span id="439">439</span>
+<span id="440">440</span>
+<span id="441">441</span>
+<span id="442">442</span>
+<span id="443">443</span>
+<span id="444">444</span>
+<span id="445">445</span>
+<span id="446">446</span>
+<span id="447">447</span>
+<span id="448">448</span>
+<span id="449">449</span>
+<span id="450">450</span>
+<span id="451">451</span>
+<span id="452">452</span>
+<span id="453">453</span>
+<span id="454">454</span>
+<span id="455">455</span>
+<span id="456">456</span>
+<span id="457">457</span>
+<span id="458">458</span>
+<span id="459">459</span>
+<span id="460">460</span>
+<span id="461">461</span>
+<span id="462">462</span>
+<span id="463">463</span>
+<span id="464">464</span>
+<span id="465">465</span>
+<span id="466">466</span>
+<span id="467">467</span>
+<span id="468">468</span>
+<span id="469">469</span>
+<span id="470">470</span>
+<span id="471">471</span>
+<span id="472">472</span>
+<span id="473">473</span>
+<span id="474">474</span>
+<span id="475">475</span>
+<span id="476">476</span>
+<span id="477">477</span>
+<span id="478">478</span>
+<span id="479">479</span>
+<span id="480">480</span>
+<span id="481">481</span>
+<span id="482">482</span>
+<span id="483">483</span>
+<span id="484">484</span>
+<span id="485">485</span>
+<span id="486">486</span>
+<span id="487">487</span>
+<span id="488">488</span>
+<span id="489">489</span>
+<span id="490">490</span>
+<span id="491">491</span>
+<span id="492">492</span>
+<span id="493">493</span>
+<span id="494">494</span>
+<span id="495">495</span>
+<span id="496">496</span>
+<span id="497">497</span>
+<span id="498">498</span>
+<span id="499">499</span>
+<span id="500">500</span>
+<span id="501">501</span>
+<span id="502">502</span>
+<span id="503">503</span>
+<span id="504">504</span>
+<span id="505">505</span>
+<span id="506">506</span>
+<span id="507">507</span>
+<span id="508">508</span>
+<span id="509">509</span>
+<span id="510">510</span>
+<span id="511">511</span>
+<span id="512">512</span>
+<span id="513">513</span>
+<span id="514">514</span>
+<span id="515">515</span>
+<span id="516">516</span>
+<span id="517">517</span>
+<span id="518">518</span>
+<span id="519">519</span>
+<span id="520">520</span>
+<span id="521">521</span>
+<span id="522">522</span>
+<span id="523">523</span>
+<span id="524">524</span>
+<span id="525">525</span>
+<span id="526">526</span>
+<span id="527">527</span>
+<span id="528">528</span>
+<span id="529">529</span>
+<span id="530">530</span>
+<span id="531">531</span>
+<span id="532">532</span>
+<span id="533">533</span>
+<span id="534">534</span>
+<span id="535">535</span>
+<span id="536">536</span>
+<span id="537">537</span>
+<span id="538">538</span>
+<span id="539">539</span>
+<span id="540">540</span>
+<span id="541">541</span>
+<span id="542">542</span>
+<span id="543">543</span>
+<span id="544">544</span>
+<span id="545">545</span>
+<span id="546">546</span>
+<span id="547">547</span>
+<span id="548">548</span>
+<span id="549">549</span>
+<span id="550">550</span>
+<span id="551">551</span>
+<span id="552">552</span>
+<span id="553">553</span>
+<span id="554">554</span>
+<span id="555">555</span>
+<span id="556">556</span>
+<span id="557">557</span>
+<span id="558">558</span>
+<span id="559">559</span>
+<span id="560">560</span>
+<span id="561">561</span>
+<span id="562">562</span>
+<span id="563">563</span>
+<span id="564">564</span>
+<span id="565">565</span>
+<span id="566">566</span>
+<span id="567">567</span>
+<span id="568">568</span>
+<span id="569">569</span>
+<span id="570">570</span>
+<span id="571">571</span>
+<span id="572">572</span>
+<span id="573">573</span>
+<span id="574">574</span>
+<span id="575">575</span>
+<span id="576">576</span>
+<span id="577">577</span>
+<span id="578">578</span>
+<span id="579">579</span>
+<span id="580">580</span>
+<span id="581">581</span>
+<span id="582">582</span>
+<span id="583">583</span>
+<span id="584">584</span>
+<span id="585">585</span>
+<span id="586">586</span>
+<span id="587">587</span>
+<span id="588">588</span>
+<span id="589">589</span>
+<span id="590">590</span>
+<span id="591">591</span>
+<span id="592">592</span>
+<span id="593">593</span>
+<span id="594">594</span>
+<span id="595">595</span>
+<span id="596">596</span>
+<span id="597">597</span>
+<span id="598">598</span>
+<span id="599">599</span>
+<span id="600">600</span>
+<span id="601">601</span>
+<span id="602">602</span>
+<span id="603">603</span>
+<span id="604">604</span>
+<span id="605">605</span>
+<span id="606">606</span>
+<span id="607">607</span>
+<span id="608">608</span>
+<span id="609">609</span>
+<span id="610">610</span>
+<span id="611">611</span>
+<span id="612">612</span>
+<span id="613">613</span>
+<span id="614">614</span>
+<span id="615">615</span>
+<span id="616">616</span>
+<span id="617">617</span>
+<span id="618">618</span>
+<span id="619">619</span>
+<span id="620">620</span>
+<span id="621">621</span>
+<span id="622">622</span>
+<span id="623">623</span>
+<span id="624">624</span>
+<span id="625">625</span>
+<span id="626">626</span>
+<span id="627">627</span>
+<span id="628">628</span>
+<span id="629">629</span>
+<span id="630">630</span>
+<span id="631">631</span>
+<span id="632">632</span>
+<span id="633">633</span>
+<span id="634">634</span>
+<span id="635">635</span>
+<span id="636">636</span>
+<span id="637">637</span>
+<span id="638">638</span>
+<span id="639">639</span>
+<span id="640">640</span>
+<span id="641">641</span>
+<span id="642">642</span>
+<span id="643">643</span>
+<span id="644">644</span>
+<span id="645">645</span>
+<span id="646">646</span>
+<span id="647">647</span>
+<span id="648">648</span>
+<span id="649">649</span>
+<span id="650">650</span>
+<span id="651">651</span>
+<span id="652">652</span>
+<span id="653">653</span>
+<span id="654">654</span>
+<span id="655">655</span>
+<span id="656">656</span>
+<span id="657">657</span>
+<span id="658">658</span>
+<span id="659">659</span>
+<span id="660">660</span>
+<span id="661">661</span>
+<span id="662">662</span>
+<span id="663">663</span>
+<span id="664">664</span>
+<span id="665">665</span>
+<span id="666">666</span>
+<span id="667">667</span>
+<span id="668">668</span>
+<span id="669">669</span>
+<span id="670">670</span>
+<span id="671">671</span>
+<span id="672">672</span>
+<span id="673">673</span>
+<span id="674">674</span>
+<span id="675">675</span>
+</pre><pre class="rust"><code><span class="attribute">#[derive(Clone)]
+</span><span class="kw">pub enum </span>Method&lt;<span class="lifetime">&#39;a</span>&gt; {
+    Get,
+    Head,
+    Post,
+    Put,
+    Delete,
+    Connect,
+    Options,
+    Trace,
+    Patch,
+    Other(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str),
+}
+<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; core::fmt::Debug <span class="kw">for </span>Method&lt;<span class="lifetime">&#39;a</span>&gt; {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>core::fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; core::fmt::Result {
+        <span class="kw">match </span><span class="self">self </span>{
+            Method::Get =&gt; f.debug_tuple(<span class="string">&quot;Method::Get&quot;</span>).finish(),
+            Method::Head =&gt; f.debug_tuple(<span class="string">&quot;Method::Head&quot;</span>).finish(),
+            Method::Post =&gt; f.debug_tuple(<span class="string">&quot;Method::Post&quot;</span>).finish(),
+            Method::Put =&gt; f.debug_tuple(<span class="string">&quot;Method::Put&quot;</span>).finish(),
+            Method::Delete =&gt; f.debug_tuple(<span class="string">&quot;Method::Delete&quot;</span>).finish(),
+            Method::Connect =&gt; f.debug_tuple(<span class="string">&quot;Method::Connect&quot;</span>).finish(),
+            Method::Options =&gt; f.debug_tuple(<span class="string">&quot;Method::Options&quot;</span>).finish(),
+            Method::Trace =&gt; f.debug_tuple(<span class="string">&quot;Method::Trace&quot;</span>).finish(),
+            Method::Patch =&gt; f.debug_tuple(<span class="string">&quot;Method::Patch&quot;</span>).finish(),
+            Method::Other(e) =&gt; f.debug_tuple(<span class="string">&quot;Method::Other&quot;</span>).field(e).finish(),
+        }
+    }
+}
+<span class="attribute">#[derive(Clone)]
+</span><span class="kw">pub struct </span>HeaderParam&lt;<span class="lifetime">&#39;a</span>&gt; {
+    <span class="kw">pub </span>key: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str,
+    <span class="kw">pub </span>value: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[u8],
+}
+<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; core::fmt::Debug <span class="kw">for </span>HeaderParam&lt;<span class="lifetime">&#39;a</span>&gt; {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>core::fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; core::fmt::Result {
+        f.debug_struct(<span class="string">&quot;HeaderParam&quot;</span>)
+            .field(<span class="string">&quot;key&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.key)
+            .field(<span class="string">&quot;value&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.value)
+            .finish()
+    }
+}
+<span class="attribute">#[derive(Clone)]
+</span><span class="kw">pub struct </span>HeaderResult {
+    <span class="kw">pub </span>key: String,
+    <span class="kw">pub </span>value: Vec&lt;u8&gt;,
+}
+<span class="kw">impl </span>core::fmt::Debug <span class="kw">for </span>HeaderResult {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>core::fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; core::fmt::Result {
+        f.debug_struct(<span class="string">&quot;HeaderResult&quot;</span>)
+            .field(<span class="string">&quot;key&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.key)
+            .field(<span class="string">&quot;value&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.value)
+            .finish()
+    }
+}
+<span class="kw">pub type </span>HeaderListParam&lt;<span class="lifetime">&#39;a</span>&gt; = Vec&lt;HeaderParam&lt;<span class="lifetime">&#39;a</span>&gt;&gt;;
+<span class="kw">pub type </span>HeaderListResult = Vec&lt;HeaderResult&gt;;
+<span class="kw">pub type </span>Fd = u32;
+<span class="kw">pub type </span>TimeoutMs = u32;
+<span class="attribute">#[repr(C)]
+#[derive(Copy, Clone)]
+</span><span class="kw">pub struct </span>RedirectFollow {
+    <span class="kw">pub </span>max: u32,
+}
+<span class="kw">impl </span>core::fmt::Debug <span class="kw">for </span>RedirectFollow {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>core::fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; core::fmt::Result {
+        f.debug_struct(<span class="string">&quot;RedirectFollow&quot;</span>)
+            .field(<span class="string">&quot;max&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.max)
+            .finish()
+    }
+}
+<span class="kw">impl </span>wai_bindgen_wasmer::Endian <span class="kw">for </span>RedirectFollow {
+    <span class="kw">fn </span>into_le(<span class="self">self</span>) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            max: <span class="self">self</span>.max.into_le(),
+        }
+    }
+    <span class="kw">fn </span>from_le(<span class="self">self</span>) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            max: <span class="self">self</span>.max.from_le(),
+        }
+    }
+}
+<span class="kw">unsafe impl </span>wai_bindgen_wasmer::AllBytesValid <span class="kw">for </span>RedirectFollow {}
+<span class="attribute">#[derive(Clone, Copy)]
+</span><span class="kw">pub enum </span>RedirectPolicy {
+    NoFollow,
+    Follow(RedirectFollow),
+}
+<span class="kw">impl </span>core::fmt::Debug <span class="kw">for </span>RedirectPolicy {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>core::fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; core::fmt::Result {
+        <span class="kw">match </span><span class="self">self </span>{
+            RedirectPolicy::NoFollow =&gt; f.debug_tuple(<span class="string">&quot;RedirectPolicy::NoFollow&quot;</span>).finish(),
+            RedirectPolicy::Follow(e) =&gt; f.debug_tuple(<span class="string">&quot;RedirectPolicy::Follow&quot;</span>).field(e).finish(),
+        }
+    }
+}
+<span class="attribute">#[derive(Clone)]
+</span><span class="kw">pub enum </span>BodyParam&lt;<span class="lifetime">&#39;a</span>&gt; {
+    Data(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[u8]),
+    Fd(Fd),
+}
+<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; core::fmt::Debug <span class="kw">for </span>BodyParam&lt;<span class="lifetime">&#39;a</span>&gt; {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>core::fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; core::fmt::Result {
+        <span class="kw">match </span><span class="self">self </span>{
+            BodyParam::Data(e) =&gt; f.debug_tuple(<span class="string">&quot;BodyParam::Data&quot;</span>).field(e).finish(),
+            BodyParam::Fd(e) =&gt; f.debug_tuple(<span class="string">&quot;BodyParam::Fd&quot;</span>).field(e).finish(),
+        }
+    }
+}
+<span class="attribute">#[derive(Clone)]
+</span><span class="kw">pub enum </span>BodyResult {
+    Data(Vec&lt;u8&gt;),
+    Fd(Fd),
+}
+<span class="kw">impl </span>core::fmt::Debug <span class="kw">for </span>BodyResult {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>core::fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; core::fmt::Result {
+        <span class="kw">match </span><span class="self">self </span>{
+            BodyResult::Data(e) =&gt; f.debug_tuple(<span class="string">&quot;BodyResult::Data&quot;</span>).field(e).finish(),
+            BodyResult::Fd(e) =&gt; f.debug_tuple(<span class="string">&quot;BodyResult::Fd&quot;</span>).field(e).finish(),
+        }
+    }
+}
+<span class="attribute">#[derive(Clone)]
+</span><span class="kw">pub struct </span>Request&lt;<span class="lifetime">&#39;a</span>&gt; {
+    <span class="kw">pub </span>url: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str,
+    <span class="kw">pub </span>method: Method&lt;<span class="lifetime">&#39;a</span>&gt;,
+    <span class="kw">pub </span>headers: HeaderListParam&lt;<span class="lifetime">&#39;a</span>&gt;,
+    <span class="kw">pub </span>body: <span class="prelude-ty">Option</span>&lt;BodyParam&lt;<span class="lifetime">&#39;a</span>&gt;&gt;,
+    <span class="kw">pub </span>timeout: <span class="prelude-ty">Option</span>&lt;TimeoutMs&gt;,
+    <span class="kw">pub </span>redirect_policy: <span class="prelude-ty">Option</span>&lt;RedirectPolicy&gt;,
+}
+<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; core::fmt::Debug <span class="kw">for </span>Request&lt;<span class="lifetime">&#39;a</span>&gt; {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>core::fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; core::fmt::Result {
+        f.debug_struct(<span class="string">&quot;Request&quot;</span>)
+            .field(<span class="string">&quot;url&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.url)
+            .field(<span class="string">&quot;method&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.method)
+            .field(<span class="string">&quot;headers&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.headers)
+            .field(<span class="string">&quot;body&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.body)
+            .field(<span class="string">&quot;timeout&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.timeout)
+            .field(<span class="string">&quot;redirect-policy&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.redirect_policy)
+            .finish()
+    }
+}
+<span class="attribute">#[derive(Clone)]
+</span><span class="kw">pub struct </span>Response {
+    <span class="kw">pub </span>status: u16,
+    <span class="kw">pub </span>headers: HeaderListResult,
+    <span class="kw">pub </span>body: BodyResult,
+    <span class="kw">pub </span>redirect_urls: <span class="prelude-ty">Option</span>&lt;Vec&lt;String&gt;&gt;,
+}
+<span class="kw">impl </span>core::fmt::Debug <span class="kw">for </span>Response {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>core::fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; core::fmt::Result {
+        f.debug_struct(<span class="string">&quot;Response&quot;</span>)
+            .field(<span class="string">&quot;status&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.status)
+            .field(<span class="string">&quot;headers&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.headers)
+            .field(<span class="string">&quot;body&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.body)
+            .field(<span class="string">&quot;redirect-urls&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.redirect_urls)
+            .finish()
+    }
+}
+<span class="kw">pub trait </span>WasixHttpClientV1: Sized + Send + Sync + <span class="lifetime">&#39;static </span>{
+    <span class="kw">type </span>Client: std::fmt::Debug;
+    <span class="kw">fn </span>client_new(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>::Client, String&gt;;
+    <span class="kw">fn </span>client_send(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        self_: <span class="kw-2">&amp;</span><span class="self">Self</span>::Client,
+        request: Request&lt;<span class="lifetime">&#39;_</span>&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;Response, String&gt;;
+    <span class="kw">fn </span>drop_client(<span class="kw-2">&amp;mut </span><span class="self">self</span>, state: <span class="self">Self</span>::Client) {
+        drop(state);
+    }
+}
+<span class="kw">pub struct </span>WasixHttpClientV1Tables&lt;T: WasixHttpClientV1&gt; {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) client_table: wai_bindgen_wasmer::Table&lt;T::Client&gt;,
+}
+<span class="kw">impl</span>&lt;T: WasixHttpClientV1&gt; Default <span class="kw">for </span>WasixHttpClientV1Tables&lt;T&gt; {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            client_table: Default::default(),
+        }
+    }
+}
+<span class="kw">impl</span>&lt;T: WasixHttpClientV1&gt; Clone <span class="kw">for </span>WasixHttpClientV1Tables&lt;T&gt; {
+    <span class="kw">fn </span>clone(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::default()
+    }
+}
+<span class="kw">pub struct </span>LazyInitialized {
+    memory: wasmer::Memory,
+    func_canonical_abi_realloc: wasmer::TypedFunction&lt;(i32, i32, i32, i32), i32&gt;,
+}
+<span class="attribute">#[must_use = <span class="string">&quot;The returned initializer function must be called
+      with the instance and the store before starting the runtime&quot;</span>]
+</span><span class="kw">pub fn </span>add_to_imports&lt;T&gt;(
+    store: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>wasmer::AsStoreMut,
+    imports: <span class="kw-2">&amp;mut </span>wasmer::Imports,
+    data: T,
+) -&gt; Box&lt;<span class="kw">dyn </span>FnOnce(<span class="kw-2">&amp;</span>wasmer::Instance, <span class="kw-2">&amp;</span><span class="kw">dyn </span>wasmer::AsStoreRef) -&gt; <span class="prelude-ty">Result</span>&lt;(), anyhow::Error&gt;&gt;
+<span class="kw">where
+    </span>T: WasixHttpClientV1,
+{
+    <span class="attribute">#[derive(Clone)]
+    </span><span class="kw">struct </span>EnvWrapper&lt;T: WasixHttpClientV1&gt; {
+        data: T,
+        tables: std::rc::Rc&lt;core::cell::RefCell&lt;WasixHttpClientV1Tables&lt;T&gt;&gt;&gt;,
+        lazy: std::rc::Rc&lt;OnceCell&lt;LazyInitialized&gt;&gt;,
+    }
+    <span class="kw">unsafe impl</span>&lt;T: WasixHttpClientV1&gt; Send <span class="kw">for </span>EnvWrapper&lt;T&gt; {}
+    <span class="kw">unsafe impl</span>&lt;T: WasixHttpClientV1&gt; Sync <span class="kw">for </span>EnvWrapper&lt;T&gt; {}
+    <span class="kw">let </span>lazy = std::rc::Rc::new(OnceCell::new());
+    <span class="kw">let </span>env = EnvWrapper {
+        data,
+        tables: std::rc::Rc::default(),
+        lazy: std::rc::Rc::clone(<span class="kw-2">&amp;</span>lazy),
+    };
+    <span class="kw">let </span>env = wasmer::FunctionEnv::new(<span class="kw-2">&amp;mut *</span>store, env);
+    <span class="kw">let </span><span class="kw-2">mut </span>exports = wasmer::Exports::new();
+    <span class="kw">let </span><span class="kw-2">mut </span>store = store.as_store_mut();
+    exports.insert(
+        <span class="string">&quot;client::new&quot;</span>,
+        wasmer::Function::new_typed_with_env(
+            <span class="kw-2">&amp;mut </span>store,
+            <span class="kw-2">&amp;</span>env,
+            <span class="kw">move </span>|<span class="kw-2">mut </span>store: wasmer::FunctionEnvMut&lt;EnvWrapper&lt;T&gt;&gt;,
+                  arg0: i32|
+                  -&gt; <span class="prelude-ty">Result</span>&lt;(), wasmer::RuntimeError&gt; {
+                <span class="kw">let </span>span = <span class="macro">wai_bindgen_wasmer::tracing::span!</span>(
+                    wai_bindgen_wasmer::tracing::Level::TRACE,
+                    <span class="string">&quot;wai-bindgen abi&quot;</span>,
+                    module = <span class="string">&quot;wasix_http_client_v1&quot;</span>,
+                    function = <span class="string">&quot;client::new&quot;</span>,
+                );
+                <span class="kw">let </span>_enter = span.enter();
+                <span class="kw">let </span>func_canonical_abi_realloc = store
+                    .data()
+                    .lazy
+                    .get()
+                    .unwrap()
+                    .func_canonical_abi_realloc
+                    .clone();
+                <span class="kw">let </span>_memory: wasmer::Memory = store.data().lazy.get().unwrap().memory.clone();
+                <span class="kw">let </span>data_mut = store.data_mut();
+                <span class="kw">let </span>tables = data_mut.tables.borrow_mut();
+                <span class="kw">let </span>host = <span class="kw-2">&amp;mut </span>data_mut.data;
+                <span class="kw">let </span>result = host.client_new();
+                drop(tables);
+                <span class="macro">wai_bindgen_wasmer::tracing::event!</span>(
+                    wai_bindgen_wasmer::tracing::Level::TRACE,
+                    result = wai_bindgen_wasmer::tracing::field::debug(<span class="kw-2">&amp;</span>result),
+                );
+                <span class="kw">match </span>result {
+                    <span class="prelude-val">Ok</span>(e) =&gt; {
+                        <span class="kw">let </span>val = wai_bindgen_wasmer::rt::as_i32({
+                            <span class="kw">let </span>data_mut = store.data_mut();
+                            <span class="kw">let </span><span class="kw-2">mut </span>tables = data_mut.tables.borrow_mut();
+                            tables.client_table.insert(e) <span class="kw">as </span>i32
+                        });
+                        <span class="kw">let </span>_memory_view = _memory.view(<span class="kw-2">&amp;</span>store);
+                        <span class="kw">let </span>caller_memory = <span class="kw">unsafe </span>{ _memory_view.data_unchecked_mut() };
+                        caller_memory
+                            .store(arg0 + <span class="number">0</span>, wai_bindgen_wasmer::rt::as_i32(<span class="number">0i32</span>) <span class="kw">as </span>u8)<span class="question-mark">?</span>;
+                        caller_memory.store(arg0 + <span class="number">4</span>, val)<span class="question-mark">?</span>;
+                    }
+                    <span class="prelude-val">Err</span>(e) =&gt; {
+                        <span class="kw">let </span>_memory_view = _memory.view(<span class="kw-2">&amp;</span>store);
+                        <span class="kw">let </span>caller_memory = <span class="kw">unsafe </span>{ _memory_view.data_unchecked_mut() };
+                        caller_memory
+                            .store(arg0 + <span class="number">0</span>, wai_bindgen_wasmer::rt::as_i32(<span class="number">1i32</span>) <span class="kw">as </span>u8)<span class="question-mark">?</span>;
+                        <span class="kw">let </span>vec0 = e;
+                        <span class="kw">let </span>ptr0 = func_canonical_abi_realloc.call(
+                            <span class="kw-2">&amp;mut </span>store.as_store_mut(),
+                            <span class="number">0</span>,
+                            <span class="number">0</span>,
+                            <span class="number">1</span>,
+                            vec0.len() <span class="kw">as </span>i32,
+                        )<span class="question-mark">?</span>;
+                        <span class="kw">let </span>_memory_view = _memory.view(<span class="kw-2">&amp;</span>store);
+                        <span class="kw">let </span>caller_memory = <span class="kw">unsafe </span>{ _memory_view.data_unchecked_mut() };
+                        caller_memory.store_many(ptr0, vec0.as_bytes())<span class="question-mark">?</span>;
+                        caller_memory
+                            .store(arg0 + <span class="number">8</span>, wai_bindgen_wasmer::rt::as_i32(vec0.len() <span class="kw">as </span>i32))<span class="question-mark">?</span>;
+                        caller_memory.store(arg0 + <span class="number">4</span>, wai_bindgen_wasmer::rt::as_i32(ptr0))<span class="question-mark">?</span>;
+                    }
+                };
+                <span class="prelude-val">Ok</span>(())
+            },
+        ),
+    );
+    exports.insert(
+        <span class="string">&quot;client::send&quot;</span>,
+        wasmer::Function::new_typed_with_env(
+            <span class="kw-2">&amp;mut </span>store,
+            <span class="kw-2">&amp;</span>env,
+            <span class="kw">move </span>|<span class="kw-2">mut </span>store: wasmer::FunctionEnvMut&lt;EnvWrapper&lt;T&gt;&gt;,
+                  arg0: i32,
+                  arg1: i32|
+                  -&gt; <span class="prelude-ty">Result</span>&lt;(), wasmer::RuntimeError&gt; {
+                <span class="kw">let </span>span = <span class="macro">wai_bindgen_wasmer::tracing::span!</span>(
+                    wai_bindgen_wasmer::tracing::Level::TRACE,
+                    <span class="string">&quot;wai-bindgen abi&quot;</span>,
+                    module = <span class="string">&quot;wasix_http_client_v1&quot;</span>,
+                    function = <span class="string">&quot;client::send&quot;</span>,
+                );
+                <span class="kw">let </span>_enter = span.enter();
+                <span class="kw">let </span>func_canonical_abi_realloc = store
+                    .data()
+                    .lazy
+                    .get()
+                    .unwrap()
+                    .func_canonical_abi_realloc
+                    .clone();
+                <span class="kw">let </span>(data_mut, alt_store) = store.data_and_store_mut();
+                <span class="kw">let </span>_memory: wasmer::Memory = data_mut.lazy.get().unwrap().memory.clone();
+                <span class="kw">let </span>_memory_view = _memory.view(<span class="kw-2">&amp;</span>alt_store);
+                <span class="kw">let </span><span class="kw-2">mut </span>_bc = wai_bindgen_wasmer::BorrowChecker::new(<span class="kw">unsafe </span>{
+                    _memory_view.data_unchecked_mut()
+                });
+                <span class="kw">let </span>tables = data_mut.tables.borrow_mut();
+                <span class="kw">let </span>load0 = _bc.load::&lt;i32&gt;(arg0 + <span class="number">0</span>)<span class="question-mark">?</span>;
+                <span class="kw">let </span>load1 = _bc.load::&lt;i32&gt;(arg0 + <span class="number">4</span>)<span class="question-mark">?</span>;
+                <span class="kw">let </span>load2 = _bc.load::&lt;i32&gt;(arg0 + <span class="number">8</span>)<span class="question-mark">?</span>;
+                <span class="kw">let </span>ptr3 = load1;
+                <span class="kw">let </span>len3 = load2;
+                <span class="kw">let </span>load4 = _bc.load::&lt;u8&gt;(arg0 + <span class="number">12</span>)<span class="question-mark">?</span>;
+                <span class="kw">let </span>load8 = _bc.load::&lt;i32&gt;(arg0 + <span class="number">24</span>)<span class="question-mark">?</span>;
+                <span class="kw">let </span>load9 = _bc.load::&lt;i32&gt;(arg0 + <span class="number">28</span>)<span class="question-mark">?</span>;
+                <span class="kw">let </span>len16 = load9;
+                <span class="kw">let </span>base16 = load8;
+                <span class="kw">let </span><span class="kw-2">mut </span>result16 = Vec::with_capacity(len16 <span class="kw">as </span>usize);
+                <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..len16 {
+                    <span class="kw">let </span>base = base16 + i * <span class="number">16</span>;
+                    result16.push({
+                        <span class="kw">let </span>load10 = _bc.load::&lt;i32&gt;(base + <span class="number">0</span>)<span class="question-mark">?</span>;
+                        <span class="kw">let </span>load11 = _bc.load::&lt;i32&gt;(base + <span class="number">4</span>)<span class="question-mark">?</span>;
+                        <span class="kw">let </span>ptr12 = load10;
+                        <span class="kw">let </span>len12 = load11;
+                        <span class="kw">let </span>load13 = _bc.load::&lt;i32&gt;(base + <span class="number">8</span>)<span class="question-mark">?</span>;
+                        <span class="kw">let </span>load14 = _bc.load::&lt;i32&gt;(base + <span class="number">12</span>)<span class="question-mark">?</span>;
+                        <span class="kw">let </span>ptr15 = load13;
+                        <span class="kw">let </span>len15 = load14;
+                        HeaderParam {
+                            key: _bc.slice_str(ptr12, len12)<span class="question-mark">?</span>,
+                            value: _bc.slice(ptr15, len15)<span class="question-mark">?</span>,
+                        }
+                    });
+                }
+                <span class="kw">let </span>load17 = _bc.load::&lt;u8&gt;(arg0 + <span class="number">32</span>)<span class="question-mark">?</span>;
+                <span class="kw">let </span>load23 = _bc.load::&lt;u8&gt;(arg0 + <span class="number">48</span>)<span class="question-mark">?</span>;
+                <span class="kw">let </span>load25 = _bc.load::&lt;u8&gt;(arg0 + <span class="number">56</span>)<span class="question-mark">?</span>;
+                <span class="kw">let </span>param0 = tables
+                    .client_table
+                    .get((load0) <span class="kw">as </span>u32)
+                    .ok_or_else(|| wasmer::RuntimeError::new(<span class="string">&quot;invalid handle index&quot;</span>))<span class="question-mark">?</span>;
+                <span class="kw">let </span>param1 = Request {
+                    url: _bc.slice_str(ptr3, len3)<span class="question-mark">?</span>,
+                    method: <span class="kw">match </span>i32::from(load4) {
+                        <span class="number">0 </span>=&gt; Method::Get,
+                        <span class="number">1 </span>=&gt; Method::Head,
+                        <span class="number">2 </span>=&gt; Method::Post,
+                        <span class="number">3 </span>=&gt; Method::Put,
+                        <span class="number">4 </span>=&gt; Method::Delete,
+                        <span class="number">5 </span>=&gt; Method::Connect,
+                        <span class="number">6 </span>=&gt; Method::Options,
+                        <span class="number">7 </span>=&gt; Method::Trace,
+                        <span class="number">8 </span>=&gt; Method::Patch,
+                        <span class="number">9 </span>=&gt; Method::Other({
+                            <span class="kw">let </span>load5 = _bc.load::&lt;i32&gt;(arg0 + <span class="number">16</span>)<span class="question-mark">?</span>;
+                            <span class="kw">let </span>load6 = _bc.load::&lt;i32&gt;(arg0 + <span class="number">20</span>)<span class="question-mark">?</span>;
+                            <span class="kw">let </span>ptr7 = load5;
+                            <span class="kw">let </span>len7 = load6;
+                            _bc.slice_str(ptr7, len7)<span class="question-mark">?
+                        </span>}),
+                        <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(invalid_variant(<span class="string">&quot;Method&quot;</span>)),
+                    },
+                    headers: result16,
+                    body: <span class="kw">match </span>i32::from(load17) {
+                        <span class="number">0 </span>=&gt; <span class="prelude-val">None</span>,
+                        <span class="number">1 </span>=&gt; <span class="prelude-val">Some</span>({
+                            <span class="kw">let </span>load18 = _bc.load::&lt;u8&gt;(arg0 + <span class="number">36</span>)<span class="question-mark">?</span>;
+                            <span class="kw">match </span>i32::from(load18) {
+                                <span class="number">0 </span>=&gt; BodyParam::Data({
+                                    <span class="kw">let </span>load19 = _bc.load::&lt;i32&gt;(arg0 + <span class="number">40</span>)<span class="question-mark">?</span>;
+                                    <span class="kw">let </span>load20 = _bc.load::&lt;i32&gt;(arg0 + <span class="number">44</span>)<span class="question-mark">?</span>;
+                                    <span class="kw">let </span>ptr21 = load19;
+                                    <span class="kw">let </span>len21 = load20;
+                                    _bc.slice(ptr21, len21)<span class="question-mark">?
+                                </span>}),
+                                <span class="number">1 </span>=&gt; BodyParam::Fd({
+                                    <span class="kw">let </span>load22 = _bc.load::&lt;i32&gt;(arg0 + <span class="number">40</span>)<span class="question-mark">?</span>;
+                                    load22 <span class="kw">as </span>u32
+                                }),
+                                <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(invalid_variant(<span class="string">&quot;BodyParam&quot;</span>)),
+                            }
+                        }),
+                        <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(invalid_variant(<span class="string">&quot;option&quot;</span>)),
+                    },
+                    timeout: <span class="kw">match </span>i32::from(load23) {
+                        <span class="number">0 </span>=&gt; <span class="prelude-val">None</span>,
+                        <span class="number">1 </span>=&gt; <span class="prelude-val">Some</span>({
+                            <span class="kw">let </span>load24 = _bc.load::&lt;i32&gt;(arg0 + <span class="number">52</span>)<span class="question-mark">?</span>;
+                            load24 <span class="kw">as </span>u32
+                        }),
+                        <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(invalid_variant(<span class="string">&quot;option&quot;</span>)),
+                    },
+                    redirect_policy: <span class="kw">match </span>i32::from(load25) {
+                        <span class="number">0 </span>=&gt; <span class="prelude-val">None</span>,
+                        <span class="number">1 </span>=&gt; <span class="prelude-val">Some</span>({
+                            <span class="kw">let </span>load26 = _bc.load::&lt;u8&gt;(arg0 + <span class="number">60</span>)<span class="question-mark">?</span>;
+                            <span class="kw">match </span>i32::from(load26) {
+                                <span class="number">0 </span>=&gt; RedirectPolicy::NoFollow,
+                                <span class="number">1 </span>=&gt; RedirectPolicy::Follow({
+                                    <span class="kw">let </span>load27 = _bc.load::&lt;i32&gt;(arg0 + <span class="number">64</span>)<span class="question-mark">?</span>;
+                                    RedirectFollow { max: load27 <span class="kw">as </span>u32 }
+                                }),
+                                <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(invalid_variant(<span class="string">&quot;RedirectPolicy&quot;</span>)),
+                            }
+                        }),
+                        <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(invalid_variant(<span class="string">&quot;option&quot;</span>)),
+                    },
+                };
+                <span class="macro">wai_bindgen_wasmer::tracing::event!</span>(
+                    wai_bindgen_wasmer::tracing::Level::TRACE,
+                    self_ = wai_bindgen_wasmer::tracing::field::debug(<span class="kw-2">&amp;</span>param0),
+                    request = wai_bindgen_wasmer::tracing::field::debug(<span class="kw-2">&amp;</span>param1),
+                );
+                <span class="kw">let </span>host = <span class="kw-2">&amp;mut </span>data_mut.data;
+                <span class="kw">let </span>result = host.client_send(param0, param1);
+                drop(tables);
+                <span class="macro">wai_bindgen_wasmer::tracing::event!</span>(
+                    wai_bindgen_wasmer::tracing::Level::TRACE,
+                    result = wai_bindgen_wasmer::tracing::field::debug(<span class="kw-2">&amp;</span>result),
+                );
+                <span class="kw">match </span>result {
+                    <span class="prelude-val">Ok</span>(e) =&gt; {
+                        <span class="kw">let </span>_memory_view = _memory.view(<span class="kw-2">&amp;</span>store);
+                        <span class="kw">let </span>caller_memory = <span class="kw">unsafe </span>{ _memory_view.data_unchecked_mut() };
+                        caller_memory
+                            .store(arg1 + <span class="number">0</span>, wai_bindgen_wasmer::rt::as_i32(<span class="number">0i32</span>) <span class="kw">as </span>u8)<span class="question-mark">?</span>;
+                        <span class="kw">let </span>Response {
+                            status: status28,
+                            headers: headers28,
+                            body: body28,
+                            redirect_urls: redirect_urls28,
+                        } = e;
+                        caller_memory.store(
+                            arg1 + <span class="number">4</span>,
+                            wai_bindgen_wasmer::rt::as_i32(wai_bindgen_wasmer::rt::as_i32(status28))
+                                <span class="kw">as </span>u16,
+                        )<span class="question-mark">?</span>;
+                        <span class="kw">let </span>vec32 = headers28;
+                        <span class="kw">let </span>len32 = vec32.len() <span class="kw">as </span>i32;
+                        <span class="kw">let </span>result32 = func_canonical_abi_realloc.call(
+                            <span class="kw-2">&amp;mut </span>store.as_store_mut(),
+                            <span class="number">0</span>,
+                            <span class="number">0</span>,
+                            <span class="number">4</span>,
+                            len32 * <span class="number">16</span>,
+                        )<span class="question-mark">?</span>;
+                        <span class="kw">for </span>(i, e) <span class="kw">in </span>vec32.into_iter().enumerate() {
+                            <span class="kw">let </span>base = result32 + (i <span class="kw">as </span>i32) * <span class="number">16</span>;
+                            {
+                                <span class="kw">let </span>HeaderResult {
+                                    key: key29,
+                                    value: value29,
+                                } = e;
+                                <span class="kw">let </span>vec30 = key29;
+                                <span class="kw">let </span>ptr30 = func_canonical_abi_realloc.call(
+                                    <span class="kw-2">&amp;mut </span>store.as_store_mut(),
+                                    <span class="number">0</span>,
+                                    <span class="number">0</span>,
+                                    <span class="number">1</span>,
+                                    vec30.len() <span class="kw">as </span>i32,
+                                )<span class="question-mark">?</span>;
+                                <span class="kw">let </span>_memory_view = _memory.view(<span class="kw-2">&amp;</span>store);
+                                <span class="kw">let </span>caller_memory = <span class="kw">unsafe </span>{ _memory_view.data_unchecked_mut() };
+                                caller_memory.store_many(ptr30, vec30.as_bytes())<span class="question-mark">?</span>;
+                                caller_memory.store(
+                                    base + <span class="number">4</span>,
+                                    wai_bindgen_wasmer::rt::as_i32(vec30.len() <span class="kw">as </span>i32),
+                                )<span class="question-mark">?</span>;
+                                caller_memory
+                                    .store(base + <span class="number">0</span>, wai_bindgen_wasmer::rt::as_i32(ptr30))<span class="question-mark">?</span>;
+                                <span class="kw">let </span>vec31 = value29;
+                                <span class="kw">let </span>ptr31 = func_canonical_abi_realloc.call(
+                                    <span class="kw-2">&amp;mut </span>store.as_store_mut(),
+                                    <span class="number">0</span>,
+                                    <span class="number">0</span>,
+                                    <span class="number">1</span>,
+                                    (vec31.len() <span class="kw">as </span>i32) * <span class="number">1</span>,
+                                )<span class="question-mark">?</span>;
+                                <span class="kw">let </span>_memory_view = _memory.view(<span class="kw-2">&amp;</span>store);
+                                <span class="kw">let </span>caller_memory = <span class="kw">unsafe </span>{ _memory_view.data_unchecked_mut() };
+                                caller_memory.store_many(ptr31, <span class="kw-2">&amp;</span>vec31)<span class="question-mark">?</span>;
+                                caller_memory.store(
+                                    base + <span class="number">12</span>,
+                                    wai_bindgen_wasmer::rt::as_i32(vec31.len() <span class="kw">as </span>i32),
+                                )<span class="question-mark">?</span>;
+                                caller_memory
+                                    .store(base + <span class="number">8</span>, wai_bindgen_wasmer::rt::as_i32(ptr31))<span class="question-mark">?</span>;
+                            }
+                        }
+                        <span class="kw">let </span>_memory_view = _memory.view(<span class="kw-2">&amp;</span>store);
+                        <span class="kw">let </span>caller_memory = <span class="kw">unsafe </span>{ _memory_view.data_unchecked_mut() };
+                        caller_memory.store(arg1 + <span class="number">12</span>, wai_bindgen_wasmer::rt::as_i32(len32))<span class="question-mark">?</span>;
+                        caller_memory.store(arg1 + <span class="number">8</span>, wai_bindgen_wasmer::rt::as_i32(result32))<span class="question-mark">?</span>;
+                        <span class="kw">match </span>body28 {
+                            BodyResult::Data(e) =&gt; {
+                                caller_memory
+                                    .store(arg1 + <span class="number">16</span>, wai_bindgen_wasmer::rt::as_i32(<span class="number">0i32</span>) <span class="kw">as </span>u8)<span class="question-mark">?</span>;
+                                <span class="kw">let </span>vec33 = e;
+                                <span class="kw">let </span>ptr33 = func_canonical_abi_realloc.call(
+                                    <span class="kw-2">&amp;mut </span>store.as_store_mut(),
+                                    <span class="number">0</span>,
+                                    <span class="number">0</span>,
+                                    <span class="number">1</span>,
+                                    (vec33.len() <span class="kw">as </span>i32) * <span class="number">1</span>,
+                                )<span class="question-mark">?</span>;
+                                <span class="kw">let </span>_memory_view = _memory.view(<span class="kw-2">&amp;</span>store);
+                                <span class="kw">let </span>caller_memory = <span class="kw">unsafe </span>{ _memory_view.data_unchecked_mut() };
+                                caller_memory.store_many(ptr33, <span class="kw-2">&amp;</span>vec33)<span class="question-mark">?</span>;
+                                caller_memory.store(
+                                    arg1 + <span class="number">24</span>,
+                                    wai_bindgen_wasmer::rt::as_i32(vec33.len() <span class="kw">as </span>i32),
+                                )<span class="question-mark">?</span>;
+                                caller_memory
+                                    .store(arg1 + <span class="number">20</span>, wai_bindgen_wasmer::rt::as_i32(ptr33))<span class="question-mark">?</span>;
+                            }
+                            BodyResult::Fd(e) =&gt; {
+                                <span class="kw">let </span>_memory_view = _memory.view(<span class="kw-2">&amp;</span>store);
+                                <span class="kw">let </span>caller_memory = <span class="kw">unsafe </span>{ _memory_view.data_unchecked_mut() };
+                                caller_memory
+                                    .store(arg1 + <span class="number">16</span>, wai_bindgen_wasmer::rt::as_i32(<span class="number">1i32</span>) <span class="kw">as </span>u8)<span class="question-mark">?</span>;
+                                caller_memory.store(
+                                    arg1 + <span class="number">20</span>,
+                                    wai_bindgen_wasmer::rt::as_i32(wai_bindgen_wasmer::rt::as_i32(
+                                        e,
+                                    )),
+                                )<span class="question-mark">?</span>;
+                            }
+                        };
+                        <span class="kw">match </span>redirect_urls28 {
+                            <span class="prelude-val">Some</span>(e) =&gt; {
+                                <span class="kw">let </span>_memory_view = _memory.view(<span class="kw-2">&amp;</span>store);
+                                <span class="kw">let </span>caller_memory = <span class="kw">unsafe </span>{ _memory_view.data_unchecked_mut() };
+                                caller_memory
+                                    .store(arg1 + <span class="number">28</span>, wai_bindgen_wasmer::rt::as_i32(<span class="number">1i32</span>) <span class="kw">as </span>u8)<span class="question-mark">?</span>;
+                                <span class="kw">let </span>vec35 = e;
+                                <span class="kw">let </span>len35 = vec35.len() <span class="kw">as </span>i32;
+                                <span class="kw">let </span>result35 = func_canonical_abi_realloc.call(
+                                    <span class="kw-2">&amp;mut </span>store.as_store_mut(),
+                                    <span class="number">0</span>,
+                                    <span class="number">0</span>,
+                                    <span class="number">4</span>,
+                                    len35 * <span class="number">8</span>,
+                                )<span class="question-mark">?</span>;
+                                <span class="kw">for </span>(i, e) <span class="kw">in </span>vec35.into_iter().enumerate() {
+                                    <span class="kw">let </span>base = result35 + (i <span class="kw">as </span>i32) * <span class="number">8</span>;
+                                    {
+                                        <span class="kw">let </span>vec34 = e;
+                                        <span class="kw">let </span>ptr34 = func_canonical_abi_realloc.call(
+                                            <span class="kw-2">&amp;mut </span>store.as_store_mut(),
+                                            <span class="number">0</span>,
+                                            <span class="number">0</span>,
+                                            <span class="number">1</span>,
+                                            vec34.len() <span class="kw">as </span>i32,
+                                        )<span class="question-mark">?</span>;
+                                        <span class="kw">let </span>_memory_view = _memory.view(<span class="kw-2">&amp;</span>store);
+                                        <span class="kw">let </span>caller_memory =
+                                            <span class="kw">unsafe </span>{ _memory_view.data_unchecked_mut() };
+                                        caller_memory.store_many(ptr34, vec34.as_bytes())<span class="question-mark">?</span>;
+                                        caller_memory.store(
+                                            base + <span class="number">4</span>,
+                                            wai_bindgen_wasmer::rt::as_i32(vec34.len() <span class="kw">as </span>i32),
+                                        )<span class="question-mark">?</span>;
+                                        caller_memory.store(
+                                            base + <span class="number">0</span>,
+                                            wai_bindgen_wasmer::rt::as_i32(ptr34),
+                                        )<span class="question-mark">?</span>;
+                                    }
+                                }
+                                <span class="kw">let </span>_memory_view = _memory.view(<span class="kw-2">&amp;</span>store);
+                                <span class="kw">let </span>caller_memory = <span class="kw">unsafe </span>{ _memory_view.data_unchecked_mut() };
+                                caller_memory
+                                    .store(arg1 + <span class="number">36</span>, wai_bindgen_wasmer::rt::as_i32(len35))<span class="question-mark">?</span>;
+                                caller_memory
+                                    .store(arg1 + <span class="number">32</span>, wai_bindgen_wasmer::rt::as_i32(result35))<span class="question-mark">?</span>;
+                            }
+                            <span class="prelude-val">None </span>=&gt; {
+                                <span class="kw">let </span>e = ();
+                                {
+                                    <span class="kw">let </span>_memory_view = _memory.view(<span class="kw-2">&amp;</span>store);
+                                    <span class="kw">let </span>caller_memory =
+                                        <span class="kw">unsafe </span>{ _memory_view.data_unchecked_mut() };
+                                    caller_memory.store(
+                                        arg1 + <span class="number">28</span>,
+                                        wai_bindgen_wasmer::rt::as_i32(<span class="number">0i32</span>) <span class="kw">as </span>u8,
+                                    )<span class="question-mark">?</span>;
+                                    <span class="kw">let </span>() = e;
+                                }
+                            }
+                        };
+                    }
+                    <span class="prelude-val">Err</span>(e) =&gt; {
+                        <span class="kw">let </span>_memory_view = _memory.view(<span class="kw-2">&amp;</span>store);
+                        <span class="kw">let </span>caller_memory = <span class="kw">unsafe </span>{ _memory_view.data_unchecked_mut() };
+                        caller_memory
+                            .store(arg1 + <span class="number">0</span>, wai_bindgen_wasmer::rt::as_i32(<span class="number">1i32</span>) <span class="kw">as </span>u8)<span class="question-mark">?</span>;
+                        <span class="kw">let </span>vec36 = e;
+                        <span class="kw">let </span>ptr36 = func_canonical_abi_realloc.call(
+                            <span class="kw-2">&amp;mut </span>store.as_store_mut(),
+                            <span class="number">0</span>,
+                            <span class="number">0</span>,
+                            <span class="number">1</span>,
+                            vec36.len() <span class="kw">as </span>i32,
+                        )<span class="question-mark">?</span>;
+                        <span class="kw">let </span>_memory_view = _memory.view(<span class="kw-2">&amp;</span>store);
+                        <span class="kw">let </span>caller_memory = <span class="kw">unsafe </span>{ _memory_view.data_unchecked_mut() };
+                        caller_memory.store_many(ptr36, vec36.as_bytes())<span class="question-mark">?</span>;
+                        caller_memory
+                            .store(arg1 + <span class="number">8</span>, wai_bindgen_wasmer::rt::as_i32(vec36.len() <span class="kw">as </span>i32))<span class="question-mark">?</span>;
+                        caller_memory.store(arg1 + <span class="number">4</span>, wai_bindgen_wasmer::rt::as_i32(ptr36))<span class="question-mark">?</span>;
+                    }
+                };
+                <span class="prelude-val">Ok</span>(())
+            },
+        ),
+    );
+    imports.register_namespace(<span class="string">&quot;wasix_http_client_v1&quot;</span>, exports);
+    <span class="kw">let </span><span class="kw-2">mut </span>canonical_abi = imports
+        .get_namespace_exports(<span class="string">&quot;canonical_abi&quot;</span>)
+        .unwrap_or_else(wasmer::Exports::new);
+    canonical_abi.insert(
+        <span class="string">&quot;resource_drop_client&quot;</span>,
+        wasmer::Function::new_typed_with_env(
+            <span class="kw-2">&amp;mut </span>store,
+            <span class="kw-2">&amp;</span>env,
+            <span class="kw">move </span>|<span class="kw-2">mut </span>store: wasmer::FunctionEnvMut&lt;EnvWrapper&lt;T&gt;&gt;,
+                  handle: u32|
+                  -&gt; <span class="prelude-ty">Result</span>&lt;(), wasmer::RuntimeError&gt; {
+                <span class="kw">let </span>data_mut = store.data_mut();
+                <span class="kw">let </span><span class="kw-2">mut </span>tables = data_mut.tables.borrow_mut();
+                <span class="kw">let </span>handle = tables.client_table.remove(handle).map_err(|e| {
+                    wasmer::RuntimeError::new(<span class="macro">format!</span>(<span class="string">&quot;failed to remove handle: {}&quot;</span>, e))
+                })<span class="question-mark">?</span>;
+                <span class="kw">let </span>host = <span class="kw-2">&amp;mut </span>data_mut.data;
+                host.drop_client(handle);
+                <span class="prelude-val">Ok</span>(())
+            },
+        ),
+    );
+    imports.register_namespace(<span class="string">&quot;canonical_abi&quot;</span>, canonical_abi);
+    <span class="kw">let </span>f = <span class="kw">move </span>|_instance: <span class="kw-2">&amp;</span>wasmer::Instance, _store: <span class="kw-2">&amp;</span><span class="kw">dyn </span>wasmer::AsStoreRef| {
+        <span class="kw">let </span>memory = _instance.exports.get_memory(<span class="string">&quot;memory&quot;</span>)<span class="question-mark">?</span>.clone();
+        <span class="kw">let </span>func_canonical_abi_realloc = _instance
+            .exports
+            .get_typed_function(<span class="kw-2">&amp;</span>_store.as_store_ref(), <span class="string">&quot;canonical_abi_realloc&quot;</span>)
+            .unwrap()
+            .clone();
+        lazy.set(LazyInitialized {
+            memory,
+            func_canonical_abi_realloc,
+        })
+        .map_err(|_e| <span class="macro">anyhow::anyhow!</span>(<span class="string">&quot;Couldn&#39;t set lazy initialized data&quot;</span>))<span class="question-mark">?</span>;
+        <span class="prelude-val">Ok</span>(())
+    };
+    Box::new(f)
+}
+<span class="kw">use </span>wai_bindgen_wasmer::once_cell::unsync::OnceCell;
+<span class="kw">use </span>wai_bindgen_wasmer::rt::invalid_variant;
+<span class="kw">use </span>wai_bindgen_wasmer::rt::RawMem;
+<span class="attribute">#[allow(unused_imports)]
+</span><span class="kw">use </span>wasmer::AsStoreMut <span class="kw">as _</span>;
+<span class="attribute">#[allow(unused_imports)]
+</span><span class="kw">use </span>wasmer::AsStoreRef <span class="kw">as _</span>;
+</code></pre></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="wasmer_wasix" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0 (897e37553 2022-11-02)" ></div></body></html>

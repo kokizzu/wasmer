@@ -214,7 +214,6 @@
 <span id="212">212</span>
 <span id="213">213</span>
 <span id="214">214</span>
-<span id="215">215</span>
 </pre><pre class="rust"><code><span class="attribute">#[cfg(feature = <span class="string">&quot;js&quot;</span>)]
 </span><span class="kw">use </span><span class="kw">crate</span>::js::externals::memory <span class="kw">as </span>memory_impl;
 <span class="attribute">#[cfg(feature = <span class="string">&quot;jsc&quot;</span>)]
@@ -291,7 +290,7 @@
 
     <span class="doccomment">/// Creates a view into the memory that then allows for
     /// read and write
-    </span><span class="kw">pub fn </span>view&lt;<span class="lifetime">&#39;a</span>&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, store: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw">impl </span>AsStoreRef) -&gt; MemoryView&lt;<span class="lifetime">&#39;a</span>&gt; {
+    </span><span class="kw">pub fn </span>view&lt;<span class="lifetime">&#39;a</span>&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, store: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>(<span class="kw">impl </span>AsStoreRef + <span class="question-mark">?</span>Sized)) -&gt; MemoryView&lt;<span class="lifetime">&#39;a</span>&gt; {
         MemoryView::new(<span class="self">self</span>, store)
     }
 
@@ -338,13 +337,22 @@
         <span class="self">self</span>.<span class="number">0</span>.grow(store, delta)
     }
 
-    <span class="doccomment">/// Copies the memory to a new store and returns a memory reference to it
+    <span class="doccomment">/// Attempts to duplicate this memory (if its clonable) in a new store
+    /// (copied memory)
     </span><span class="kw">pub fn </span>copy_to_store(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         store: <span class="kw-2">&amp;</span><span class="kw">impl </span>AsStoreRef,
         new_store: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>AsStoreMut,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, MemoryError&gt; {
-        <span class="prelude-val">Ok</span>(<span class="self">Self</span>(<span class="self">self</span>.<span class="number">0</span>.copy_to_store(store, new_store)<span class="question-mark">?</span>))
+        <span class="kw">if </span>!<span class="self">self</span>.ty(store).shared {
+            <span class="comment">// We should only be able to duplicate in a new store if the memory is shared
+            </span><span class="kw">return </span><span class="prelude-val">Err</span>(MemoryError::InvalidMemory {
+                reason: <span class="string">&quot;memory is not a shared memory type&quot;</span>.to_string(),
+            });
+        }
+        <span class="self">self</span>.<span class="number">0
+            </span>.try_copy(<span class="kw-2">&amp;</span>store)
+            .map(|new_memory| <span class="self">Self</span>::new_from_existing(new_store, new_memory.into()))
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>from_vm_extern(store: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>AsStoreMut, vm_extern: VMExternMemory) -&gt; <span class="self">Self </span>{
@@ -357,36 +365,26 @@
     }
 
     <span class="doccomment">/// Attempts to clone this memory (if its clonable)
-    </span><span class="kw">pub fn </span>try_clone(<span class="kw-2">&amp;</span><span class="self">self</span>, store: <span class="kw-2">&amp;</span><span class="kw">impl </span>AsStoreRef) -&gt; <span class="prelude-ty">Option</span>&lt;VMMemory&gt; {
+    </span><span class="kw">pub fn </span>try_clone(<span class="kw-2">&amp;</span><span class="self">self</span>, store: <span class="kw-2">&amp;</span><span class="kw">impl </span>AsStoreRef) -&gt; <span class="prelude-ty">Result</span>&lt;VMMemory, MemoryError&gt; {
         <span class="self">self</span>.<span class="number">0</span>.try_clone(store)
     }
 
     <span class="doccomment">/// Attempts to clone this memory (if its clonable) in a new store
-    </span><span class="kw">pub fn </span>clone_in_store(
+    /// (cloned memory will be shared between those that clone it)
+    </span><span class="kw">pub fn </span>share_in_store(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         store: <span class="kw-2">&amp;</span><span class="kw">impl </span>AsStoreRef,
         new_store: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>AsStoreMut,
-    ) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>&gt; {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, MemoryError&gt; {
         <span class="kw">if </span>!<span class="self">self</span>.ty(store).shared {
             <span class="comment">// We should only be able to duplicate in a new store if the memory is shared
-            </span><span class="kw">return </span><span class="prelude-val">None</span>;
+            </span><span class="kw">return </span><span class="prelude-val">Err</span>(MemoryError::InvalidMemory {
+                reason: <span class="string">&quot;memory is not a shared memory type&quot;</span>.to_string(),
+            });
         }
         <span class="self">self</span>.<span class="number">0
             </span>.try_clone(<span class="kw-2">&amp;</span>store)
             .map(|new_memory| <span class="self">Self</span>::new_from_existing(new_store, new_memory))
-    }
-
-    <span class="doccomment">/// Attempts to duplicate this memory (if its clonable) in a new store
-    </span><span class="kw">pub fn </span>duplicate_in_store(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        store: <span class="kw-2">&amp;</span><span class="kw">impl </span>AsStoreRef,
-        new_store: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>AsStoreMut,
-    ) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>&gt; {
-        <span class="kw">if </span>!<span class="self">self</span>.ty(store).shared {
-            <span class="comment">// We should only be able to duplicate in a new store if the memory is shared
-            </span><span class="kw">return </span><span class="prelude-val">None</span>;
-        }
-        <span class="self">self</span>.<span class="number">0</span>.duplicate_in_store(store, new_store).map(<span class="self">Self</span>)
     }
 
     <span class="doccomment">/// To `VMExtern`.

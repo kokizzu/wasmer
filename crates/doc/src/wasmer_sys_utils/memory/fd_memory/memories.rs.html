@@ -606,7 +606,6 @@
 <span id="606">606</span>
 <span id="607">607</span>
 <span id="608">608</span>
-<span id="609">609</span>
 </pre><pre class="rust"><code><span class="doccomment">//! Memory management for linear memories.
 //!
 //! `Memory` is to WebAssembly linear memories what `Table` is to WebAssembly tables.
@@ -742,7 +741,7 @@
 
     <span class="doccomment">/// Copies the memory
     /// (in this case it performs a copy-on-write to save memory)
-    </span><span class="kw">pub fn </span>duplicate(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, MemoryError&gt; {
+    </span><span class="kw">pub fn </span>copy(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, MemoryError&gt; {
         <span class="kw">let </span>mem_length = <span class="self">self</span>.size.bytes().<span class="number">0</span>;
         <span class="kw">let </span><span class="kw-2">mut </span>alloc = <span class="self">self
             </span>.alloc
@@ -913,9 +912,9 @@
     }
 
     <span class="doccomment">/// Copies this memory to a new memory
-    </span><span class="kw">pub fn </span>duplicate(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, MemoryError&gt; {
+    </span><span class="kw">pub fn </span>copy(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, MemoryError&gt; {
         <span class="prelude-val">Ok</span>(<span class="self">Self </span>{
-            mmap: <span class="self">self</span>.mmap.duplicate()<span class="question-mark">?</span>,
+            mmap: <span class="self">self</span>.mmap.copy()<span class="question-mark">?</span>,
             config: <span class="self">self</span>.config.clone(),
         })
     }
@@ -952,14 +951,13 @@
     }
 
     <span class="doccomment">/// Owned memory can not be cloned (this will always return None)
-    </span><span class="kw">fn </span>try_clone(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Box&lt;<span class="kw">dyn </span>LinearMemory + <span class="lifetime">&#39;static</span>&gt;&gt; {
-        <span class="macro">tracing::warn!</span>(<span class="string">&quot;trying to clone owned memory&quot;</span>);
-        <span class="prelude-val">None
-    </span>}
+    </span><span class="kw">fn </span>try_clone(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Box&lt;<span class="kw">dyn </span>LinearMemory + <span class="lifetime">&#39;static</span>&gt;, MemoryError&gt; {
+        <span class="prelude-val">Err</span>(MemoryError::MemoryNotShared)
+    }
 
     <span class="doccomment">/// Copies this memory to a new memory
-    </span><span class="kw">fn </span>duplicate(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Box&lt;<span class="kw">dyn </span>LinearMemory + <span class="lifetime">&#39;static</span>&gt;, MemoryError&gt; {
-        <span class="kw">let </span>forked = <span class="self">Self</span>::duplicate(<span class="self">self</span>)<span class="question-mark">?</span>;
+    </span><span class="kw">fn </span>copy(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Box&lt;<span class="kw">dyn </span>LinearMemory + <span class="lifetime">&#39;static</span>&gt;, MemoryError&gt; {
+        <span class="kw">let </span>forked = <span class="self">Self</span>::copy(<span class="self">self</span>)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(Box::new(forked))
     }
 }
@@ -1002,10 +1000,10 @@
     }
 
     <span class="doccomment">/// Copies this memory to a new memory
-    </span><span class="kw">pub fn </span>duplicate(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, MemoryError&gt; {
+    </span><span class="kw">pub fn </span>copy(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, MemoryError&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>guard = <span class="self">self</span>.mmap.write().unwrap();
         <span class="prelude-val">Ok</span>(<span class="self">Self </span>{
-            mmap: Arc::new(RwLock::new(guard.duplicate()<span class="question-mark">?</span>)),
+            mmap: Arc::new(RwLock::new(guard.copy()<span class="question-mark">?</span>)),
             config: <span class="self">self</span>.config.clone(),
             conditions: ThreadConditions::new(),
         })
@@ -1049,13 +1047,13 @@
     }
 
     <span class="doccomment">/// Shared memory can always be cloned
-    </span><span class="kw">fn </span>try_clone(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Box&lt;<span class="kw">dyn </span>LinearMemory + <span class="lifetime">&#39;static</span>&gt;&gt; {
-        <span class="prelude-val">Some</span>(Box::new(<span class="self">self</span>.clone()))
+    </span><span class="kw">fn </span>try_clone(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Box&lt;<span class="kw">dyn </span>LinearMemory + <span class="lifetime">&#39;static</span>&gt;, MemoryError&gt; {
+        <span class="prelude-val">Ok</span>(Box::new(<span class="self">self</span>.clone()))
     }
 
     <span class="doccomment">/// Copies this memory to a new memory
-    </span><span class="kw">fn </span>duplicate(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Box&lt;<span class="kw">dyn </span>LinearMemory + <span class="lifetime">&#39;static</span>&gt;, MemoryError&gt; {
-        <span class="kw">let </span>forked = <span class="self">Self</span>::duplicate(<span class="self">self</span>)<span class="question-mark">?</span>;
+    </span><span class="kw">fn </span>copy(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Box&lt;<span class="kw">dyn </span>LinearMemory + <span class="lifetime">&#39;static</span>&gt;, MemoryError&gt; {
+        <span class="kw">let </span>forked = <span class="self">Self</span>::copy(<span class="self">self</span>)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(Box::new(forked))
     }
 
@@ -1124,7 +1122,7 @@
     }
 
     <span class="doccomment">/// Attempts to clone this memory (if its clonable)
-    </span><span class="kw">fn </span>try_clone(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Box&lt;<span class="kw">dyn </span>LinearMemory + <span class="lifetime">&#39;static</span>&gt;&gt; {
+    </span><span class="kw">fn </span>try_clone(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Box&lt;<span class="kw">dyn </span>LinearMemory + <span class="lifetime">&#39;static</span>&gt;, MemoryError&gt; {
         <span class="self">self</span>.<span class="number">0</span>.try_clone()
     }
 
@@ -1134,8 +1132,8 @@
     }
 
     <span class="doccomment">/// Copies this memory to a new memory
-    </span><span class="kw">fn </span>duplicate(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Box&lt;<span class="kw">dyn </span>LinearMemory + <span class="lifetime">&#39;static</span>&gt;, MemoryError&gt; {
-        <span class="self">self</span>.<span class="number">0</span>.duplicate()
+    </span><span class="kw">fn </span>copy(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Box&lt;<span class="kw">dyn </span>LinearMemory + <span class="lifetime">&#39;static</span>&gt;, MemoryError&gt; {
+        <span class="self">self</span>.<span class="number">0</span>.copy()
     }
 }
 
@@ -1197,8 +1195,8 @@
     }
 
     <span class="doccomment">/// Copies this memory to a new memory
-    </span><span class="kw">pub fn </span>duplicate(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Box&lt;<span class="kw">dyn </span>LinearMemory + <span class="lifetime">&#39;static</span>&gt;, MemoryError&gt; {
-        LinearMemory::duplicate(<span class="self">self</span>)
+    </span><span class="kw">pub fn </span>copy(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Box&lt;<span class="kw">dyn </span>LinearMemory + <span class="lifetime">&#39;static</span>&gt;, MemoryError&gt; {
+        LinearMemory::copy(<span class="self">self</span>)
     }
 }
 

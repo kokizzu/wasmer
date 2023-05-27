@@ -1891,7 +1891,6 @@
 <span id="1889">1889</span>
 <span id="1890">1890</span>
 <span id="1891">1891</span>
-<span id="1892">1892</span>
 </pre><pre class="rust"><code><span class="kw">mod </span>fd;
 <span class="kw">mod </span>inode_guard;
 <span class="kw">mod </span>notification;
@@ -1900,7 +1899,7 @@
     borrow::{Borrow, Cow},
     collections::{HashMap, HashSet},
     ops::{Deref, DerefMut},
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
     sync::{
         atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering},
         Arc, Mutex, RwLock, Weak,
@@ -2303,10 +2302,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>guard = <span class="self">self</span>.has_unioned.lock().unwrap();
         <span class="kw">if </span>!guard.contains(<span class="kw-2">&amp;</span>package_name) {
             guard.insert(package_name);
-
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(fs) = binary.webc_fs.clone() {
-                sandbox_fs.union(<span class="kw-2">&amp;</span>fs);
-            }
+            sandbox_fs.union(<span class="kw-2">&amp;</span>binary.webc_fs);
         }
         <span class="bool-val">true
     </span>}
@@ -3021,17 +3017,17 @@
                         }
                     }
                     Kind::Root { entries } =&gt; {
-                        <span class="kw">match </span>component.as_os_str().to_string_lossy().borrow() {
+                        <span class="kw">match </span>component {
                             <span class="comment">// the root&#39;s parent is the root
-                            </span><span class="string">&quot;..&quot; </span>=&gt; <span class="kw">continue </span><span class="lifetime">&#39;path_iter</span>,
+                            </span>Component::ParentDir =&gt; <span class="kw">continue </span><span class="lifetime">&#39;path_iter</span>,
                             <span class="comment">// the root&#39;s current directory is the root
-                            </span><span class="string">&quot;.&quot; </span>=&gt; <span class="kw">continue </span><span class="lifetime">&#39;path_iter</span>,
-                            <span class="kw">_ </span>=&gt; (),
+                            </span>Component::CurDir =&gt; <span class="kw">continue </span><span class="lifetime">&#39;path_iter</span>,
+                            <span class="kw">_ </span>=&gt; {}
                         }
 
-                        <span class="kw">if let </span><span class="prelude-val">Some</span>(entry) =
-                            entries.get(component.as_os_str().to_string_lossy().as_ref())
-                        {
+                        <span class="kw">let </span>component = component.as_os_str().to_string_lossy();
+
+                        <span class="kw">if let </span><span class="prelude-val">Some</span>(entry) = entries.get(component.as_ref()) {
                             cur_inode = entry.clone();
                         } <span class="kw">else </span>{
                             <span class="comment">// Root is not capable of having something other then preopenned folders
@@ -3195,12 +3191,14 @@
         path: <span class="kw-2">&amp;</span>str,
         follow_symlinks: bool,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;InodeGuard, Errno&gt; {
-        <span class="kw">let </span>start_inode = <span class="kw">if </span>!path.starts_with(<span class="string">&#39;/&#39;</span>) &amp;&amp; <span class="self">self</span>.is_wasix.load(Ordering::Acquire) {
-            <span class="kw">let </span>(cur_inode, <span class="kw">_</span>) = <span class="self">self</span>.get_current_dir(inodes, base)<span class="question-mark">?</span>;
-            cur_inode
-        } <span class="kw">else </span>{
-            <span class="self">self</span>.get_fd_inode(base)<span class="question-mark">?
-        </span>};
+        <span class="kw">let </span>base_inode = <span class="self">self</span>.get_fd_inode(base)<span class="question-mark">?</span>;
+        <span class="kw">let </span>start_inode =
+            <span class="kw">if </span>!base_inode.deref().name.starts_with(<span class="string">&#39;/&#39;</span>) &amp;&amp; <span class="self">self</span>.is_wasix.load(Ordering::Acquire) {
+                <span class="kw">let </span>(cur_inode, <span class="kw">_</span>) = <span class="self">self</span>.get_current_dir(inodes, base)<span class="question-mark">?</span>;
+                cur_inode
+            } <span class="kw">else </span>{
+                <span class="self">self</span>.get_fd_inode(base)<span class="question-mark">?
+            </span>};
         <span class="self">self</span>.get_inode_at_path_inner(inodes, start_inode, path, <span class="number">0</span>, follow_symlinks)
     }
 

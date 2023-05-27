@@ -760,44 +760,6 @@
 <span id="758">758</span>
 <span id="759">759</span>
 <span id="760">760</span>
-<span id="761">761</span>
-<span id="762">762</span>
-<span id="763">763</span>
-<span id="764">764</span>
-<span id="765">765</span>
-<span id="766">766</span>
-<span id="767">767</span>
-<span id="768">768</span>
-<span id="769">769</span>
-<span id="770">770</span>
-<span id="771">771</span>
-<span id="772">772</span>
-<span id="773">773</span>
-<span id="774">774</span>
-<span id="775">775</span>
-<span id="776">776</span>
-<span id="777">777</span>
-<span id="778">778</span>
-<span id="779">779</span>
-<span id="780">780</span>
-<span id="781">781</span>
-<span id="782">782</span>
-<span id="783">783</span>
-<span id="784">784</span>
-<span id="785">785</span>
-<span id="786">786</span>
-<span id="787">787</span>
-<span id="788">788</span>
-<span id="789">789</span>
-<span id="790">790</span>
-<span id="791">791</span>
-<span id="792">792</span>
-<span id="793">793</span>
-<span id="794">794</span>
-<span id="795">795</span>
-<span id="796">796</span>
-<span id="797">797</span>
-<span id="798">798</span>
 </pre><pre class="rust"><code><span class="comment">// FIXME: merge with ./lib.rs_upstream
 
 </span><span class="attribute">#![doc(html_favicon_url = <span class="string">&quot;https://wasmer.io/images/icons/favicon-32x32.png&quot;</span>)]
@@ -829,6 +791,10 @@
     <span class="string">&quot;The `js` feature must be enabled only for the `wasm32` target (either `wasm32-unknown-unknown` or `wasm32-wasi`).&quot;
 </span>);
 
+<span class="attribute">#[cfg(test)]
+#[macro_use]
+</span><span class="kw">extern crate </span>pretty_assertions;
+
 <span class="attribute">#[macro_use]
 </span><span class="kw">mod </span>macros;
 <span class="kw">pub mod </span>bin_factory;
@@ -836,7 +802,8 @@
 <span class="comment">// TODO: should this be pub?
 </span><span class="kw">pub mod </span>net;
 <span class="comment">// TODO: should this be pub?
-</span><span class="kw">pub mod </span>fs;
+</span><span class="kw">pub mod </span>capabilities;
+<span class="kw">pub mod </span>fs;
 <span class="kw">pub mod </span>http;
 <span class="kw">mod </span>rewind;
 <span class="attribute">#[cfg(feature = <span class="string">&quot;webc_runner&quot;</span>)]
@@ -845,10 +812,6 @@
 <span class="kw">mod </span>state;
 <span class="kw">mod </span>syscalls;
 <span class="kw">mod </span>utils;
-<span class="kw">pub mod </span>wapm;
-
-<span class="kw">pub mod </span>capabilities;
-<span class="kw">pub use </span>rewind::<span class="kw-2">*</span>;
 
 <span class="doccomment">/// WAI based bindings.
 </span><span class="kw">mod </span>bindings;
@@ -868,10 +831,6 @@
 };
 
 <span class="kw">pub use </span>virtual_fs;
-<span class="attribute">#[deprecated(since = <span class="string">&quot;2.1.0&quot;</span>, note = <span class="string">&quot;Please use `virtual_fs::FsError`&quot;</span>)]
-</span><span class="kw">pub use </span>virtual_fs::FsError <span class="kw">as </span>WasiFsError;
-<span class="attribute">#[deprecated(since = <span class="string">&quot;2.1.0&quot;</span>, note = <span class="string">&quot;Please use `virtual_fs::VirtualFile`&quot;</span>)]
-</span><span class="kw">pub use </span>virtual_fs::VirtualFile <span class="kw">as </span>WasiFile;
 <span class="kw">pub use </span>virtual_fs::{DuplexPipe, FsError, Pipe, VirtualFile, WasiBidirectionalSharedPipePair};
 <span class="kw">pub use </span>virtual_net;
 <span class="kw">pub use </span>virtual_net::{UnsupportedVirtualNetworking, VirtualNetworking};
@@ -880,7 +839,7 @@
 </span><span class="kw">pub use </span>virtual_net::host::{
     io_err_into_net_error, LocalNetworking, LocalTcpListener, LocalTcpStream, LocalUdpSocket,
 };
-<span class="kw">use </span>wasmer_wasix_types::wasi::{BusErrno, Errno, ExitCode};
+<span class="kw">use </span>wasmer_wasix_types::wasi::{Errno, ExitCode};
 
 <span class="kw">pub use crate</span>::{
     fs::{default_fs_backing, Fd, WasiFs, WasiInodes, VIRTUAL_ROOT_FD},
@@ -892,21 +851,17 @@
         },
         WasiTtyState,
     },
+    rewind::<span class="kw-2">*</span>,
     runtime::{
         task_manager::{VirtualTaskManager, VirtualTaskManagerExt},
-        PluggableRuntime, WasiRuntime,
+        PluggableRuntime, Runtime,
     },
-    wapm::parse_static_webc,
-};
-
-<span class="kw">pub use </span><span class="kw">crate</span>::utils::is_wasix_module;
-
-<span class="kw">pub use crate</span>::{
     state::{
         WasiEnv, WasiEnvBuilder, WasiEnvInit, WasiFunctionEnv, WasiInstanceHandles,
         WasiStateCreationError, ALL_RIGHTS,
     },
     syscalls::{rewind, rewind_ext, types, unwind},
+    utils::is_wasix_module,
     utils::{
         get_wasi_version, get_wasi_versions, is_wasi_module,
         store::{capture_snapshot, restore_snapshot, InstanceSnapshot},
@@ -926,10 +881,9 @@
     </span>UnknownWasiVersion,
 }
 
-<span class="comment">// TODO: remove, this is a leftover from an old vbus crate and should be folded
-// into WasiRuntimeError.
-</span><span class="attribute">#[derive(Error, Copy, Clone, Debug, PartialEq, Eq)]
-</span><span class="kw">pub enum </span>VirtualBusError {
+<span class="attribute">#[deny(unused, dead_code)]
+#[derive(Error, Copy, Clone, Debug, PartialEq, Eq)]
+</span><span class="kw">pub enum </span>SpawnError {
     <span class="doccomment">/// Failed during serialization
     </span><span class="attribute">#[error(<span class="string">&quot;serialization failed&quot;</span>)]
     </span>Serialization,
@@ -948,18 +902,9 @@
     <span class="doccomment">/// Invalid ABI
     </span><span class="attribute">#[error(<span class="string">&quot;WAPM process has an invalid ABI&quot;</span>)]
     </span>InvalidABI,
-    <span class="doccomment">/// Call was aborted
-    </span><span class="attribute">#[error(<span class="string">&quot;call aborted&quot;</span>)]
-    </span>Aborted,
     <span class="doccomment">/// Bad handle
     </span><span class="attribute">#[error(<span class="string">&quot;bad handle&quot;</span>)]
     </span>BadHandle,
-    <span class="doccomment">/// Invalid topic
-    </span><span class="attribute">#[error(<span class="string">&quot;invalid topic&quot;</span>)]
-    </span>InvalidTopic,
-    <span class="doccomment">/// Invalid callback
-    </span><span class="attribute">#[error(<span class="string">&quot;invalid callback&quot;</span>)]
-    </span>BadCallback,
     <span class="doccomment">/// Call is unsupported
     </span><span class="attribute">#[error(<span class="string">&quot;unsupported&quot;</span>)]
     </span>Unsupported,
@@ -978,12 +923,6 @@
     <span class="doccomment">/// Memory allocation failed
     </span><span class="attribute">#[error(<span class="string">&quot;memory allocation failed&quot;</span>)]
     </span>MemoryAllocationFailed,
-    <span class="doccomment">/// Invocation has failed
-    </span><span class="attribute">#[error(<span class="string">&quot;invocation has failed&quot;</span>)]
-    </span>InvokeFailed,
-    <span class="doccomment">/// Already consumed
-    </span><span class="attribute">#[error(<span class="string">&quot;already consumed&quot;</span>)]
-    </span>AlreadyConsumed,
     <span class="doccomment">/// Memory access violation
     </span><span class="attribute">#[error(<span class="string">&quot;memory access violation&quot;</span>)]
     </span>MemoryAccessViolation,
@@ -1109,7 +1048,7 @@
 <span class="kw">fn </span>wasi_exports_generic(<span class="kw-2">mut </span>store: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>AsStoreMut, env: <span class="kw-2">&amp;</span>FunctionEnv&lt;WasiEnv&gt;) -&gt; Exports {
     <span class="kw">use </span>syscalls::<span class="kw-2">*</span>;
     <span class="kw">let </span>namespace = <span class="macro">namespace! </span>{
-        <span class="string">&quot;thread-spawn&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, thread_spawn_legacy::&lt;Memory32&gt;),
+        <span class="string">&quot;thread-spawn&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, thread_spawn::&lt;Memory32&gt;),
     };
     namespace
 }
@@ -1162,7 +1101,7 @@
         <span class="string">&quot;sock_recv&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, sock_recv::&lt;Memory32&gt;),
         <span class="string">&quot;sock_send&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, sock_send::&lt;Memory32&gt;),
         <span class="string">&quot;sock_shutdown&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, sock_shutdown),
-        <span class="string">&quot;thread-spawn&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, thread_spawn_legacy::&lt;Memory32&gt;),
+        <span class="string">&quot;thread-spawn&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, thread_spawn::&lt;Memory32&gt;),
     };
     namespace
 }
@@ -1218,7 +1157,7 @@
         <span class="string">&quot;sock_recv&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, sock_recv::&lt;Memory32&gt;),
         <span class="string">&quot;sock_send&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, sock_send::&lt;Memory32&gt;),
         <span class="string">&quot;sock_shutdown&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, sock_shutdown),
-        <span class="string">&quot;thread-spawn&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, thread_spawn_legacy::&lt;Memory32&gt;),
+        <span class="string">&quot;thread-spawn&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, thread_spawn::&lt;Memory32&gt;),
     };
     namespace
 }
@@ -1284,14 +1223,8 @@
         <span class="string">&quot;getcwd&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, getcwd::&lt;Memory32&gt;),
         <span class="string">&quot;chdir&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, chdir::&lt;Memory32&gt;),
         <span class="string">&quot;callback_signal&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, callback_signal::&lt;Memory32&gt;),
-        <span class="string">&quot;callback_thread&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, callback_thread::&lt;Memory32&gt;),
-        <span class="string">&quot;callback_reactor&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, callback_reactor::&lt;Memory32&gt;),
-        <span class="string">&quot;callback_thread_local_destroy&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, callback_thread_local_destroy::&lt;Memory32&gt;),
-        <span class="string">&quot;thread_spawn&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, thread_spawn::&lt;Memory32&gt;),
-        <span class="string">&quot;thread_local_create&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, thread_local_create::&lt;Memory32&gt;),
-        <span class="string">&quot;thread_local_destroy&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, thread_local_destroy),
-        <span class="string">&quot;thread_local_set&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, thread_local_set),
-        <span class="string">&quot;thread_local_get&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, thread_local_get::&lt;Memory32&gt;),
+        <span class="string">&quot;thread_spawn&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, thread_spawn_v2::&lt;Memory32&gt;),
+        <span class="string">&quot;thread_spawn_v2&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, thread_spawn_v2::&lt;Memory32&gt;),
         <span class="string">&quot;thread_sleep&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, thread_sleep::&lt;Memory32&gt;),
         <span class="string">&quot;thread_id&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, thread_id::&lt;Memory32&gt;),
         <span class="string">&quot;thread_signal&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, thread_signal),
@@ -1334,6 +1267,7 @@
         <span class="string">&quot;sock_bind&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, sock_bind::&lt;Memory32&gt;),
         <span class="string">&quot;sock_listen&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, sock_listen::&lt;Memory32&gt;),
         <span class="string">&quot;sock_accept&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, sock_accept::&lt;Memory32&gt;),
+        <span class="string">&quot;sock_accept_v2&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, sock_accept::&lt;Memory32&gt;),
         <span class="string">&quot;sock_connect&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, sock_connect::&lt;Memory32&gt;),
         <span class="string">&quot;sock_recv&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, sock_recv::&lt;Memory32&gt;),
         <span class="string">&quot;sock_recv_from&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, sock_recv_from::&lt;Memory32&gt;),
@@ -1407,14 +1341,8 @@
         <span class="string">&quot;getcwd&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, getcwd::&lt;Memory64&gt;),
         <span class="string">&quot;chdir&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, chdir::&lt;Memory64&gt;),
         <span class="string">&quot;callback_signal&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, callback_signal::&lt;Memory64&gt;),
-        <span class="string">&quot;callback_thread&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, callback_thread::&lt;Memory64&gt;),
-        <span class="string">&quot;callback_reactor&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, callback_reactor::&lt;Memory64&gt;),
-        <span class="string">&quot;callback_thread_local_destroy&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, callback_thread_local_destroy::&lt;Memory64&gt;),
-        <span class="string">&quot;thread_spawn&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, thread_spawn::&lt;Memory64&gt;),
-        <span class="string">&quot;thread_local_create&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, thread_local_create::&lt;Memory64&gt;),
-        <span class="string">&quot;thread_local_destroy&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, thread_local_destroy),
-        <span class="string">&quot;thread_local_set&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, thread_local_set),
-        <span class="string">&quot;thread_local_get&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, thread_local_get::&lt;Memory64&gt;),
+        <span class="string">&quot;thread_spawn&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, thread_spawn_v2::&lt;Memory64&gt;),
+        <span class="string">&quot;thread_spawn_v2&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, thread_spawn_v2::&lt;Memory64&gt;),
         <span class="string">&quot;thread_sleep&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, thread_sleep::&lt;Memory64&gt;),
         <span class="string">&quot;thread_id&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, thread_id::&lt;Memory64&gt;),
         <span class="string">&quot;thread_signal&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, thread_signal),
@@ -1457,6 +1385,7 @@
         <span class="string">&quot;sock_bind&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, sock_bind::&lt;Memory64&gt;),
         <span class="string">&quot;sock_listen&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, sock_listen::&lt;Memory64&gt;),
         <span class="string">&quot;sock_accept&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, sock_accept::&lt;Memory64&gt;),
+        <span class="string">&quot;sock_accept_v2&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, sock_accept::&lt;Memory64&gt;),
         <span class="string">&quot;sock_connect&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, sock_connect::&lt;Memory64&gt;),
         <span class="string">&quot;sock_recv&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, sock_recv::&lt;Memory64&gt;),
         <span class="string">&quot;sock_recv_from&quot; </span>=&gt; Function::new_typed_with_env(<span class="kw-2">&amp;mut </span>store, env, sock_recv_from::&lt;Memory64&gt;),
@@ -1505,6 +1434,10 @@
         <span class="string">&quot;wasix_32v1&quot; </span>=&gt; exports_wasix_32v1,
         <span class="string">&quot;wasix_64v1&quot; </span>=&gt; exports_wasix_64v1,
     };
+
+    <span class="kw">for </span>import <span class="kw">in </span>module.imports() {
+        <span class="macro">tracing::trace!</span>(<span class="string">&quot;import {}.{}&quot;</span>, import.module(), import.name());
+    }
 
     <span class="comment">// TODO: clean this up!
     </span><span class="macro">cfg_if::cfg_if! </span>{
@@ -1585,15 +1518,6 @@
         MemoryAccessError::Overflow =&gt; Errno::Overflow,
         MemoryAccessError::NonUtf8String =&gt; Errno::Inval,
         <span class="kw">_ </span>=&gt; Errno::Unknown,
-    }
-}
-
-<span class="kw">fn </span>mem_error_to_bus(err: MemoryAccessError) -&gt; BusErrno {
-    <span class="kw">match </span>err {
-        MemoryAccessError::HeapOutOfBounds =&gt; BusErrno::Memviolation,
-        MemoryAccessError::Overflow =&gt; BusErrno::Memviolation,
-        MemoryAccessError::NonUtf8String =&gt; BusErrno::Badrequest,
-        <span class="kw">_ </span>=&gt; BusErrno::Unknown,
     }
 }
 </code></pre></div>

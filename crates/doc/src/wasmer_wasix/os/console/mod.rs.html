@@ -282,6 +282,24 @@
 <span id="280">280</span>
 <span id="281">281</span>
 <span id="282">282</span>
+<span id="283">283</span>
+<span id="284">284</span>
+<span id="285">285</span>
+<span id="286">286</span>
+<span id="287">287</span>
+<span id="288">288</span>
+<span id="289">289</span>
+<span id="290">290</span>
+<span id="291">291</span>
+<span id="292">292</span>
+<span id="293">293</span>
+<span id="294">294</span>
+<span id="295">295</span>
+<span id="296">296</span>
+<span id="297">297</span>
+<span id="298">298</span>
+<span id="299">299</span>
+<span id="300">300</span>
 </pre><pre class="rust"><code><span class="attribute">#![allow(unused_imports)]
 #![allow(dead_code)]
 
@@ -306,15 +324,15 @@
 };
 <span class="attribute">#[cfg(feature = <span class="string">&quot;sys&quot;</span>)]
 </span><span class="kw">use </span>wasmer::Engine;
-<span class="kw">use </span>wasmer_wasix_types::{types::__WASI_STDIN_FILENO, wasi::BusErrno};
+<span class="kw">use </span>wasmer_wasix_types::{types::__WASI_STDIN_FILENO, wasi::Errno};
 
 <span class="kw">use super</span>::{cconst::ConsoleConst, common::<span class="kw-2">*</span>, task::TaskJoinHandle};
 <span class="kw">use crate</span>::{
-    bin_factory::{spawn_exec, BinFactory},
+    bin_factory::{spawn_exec, BinFactory, BinaryPackage},
     capabilities::Capabilities,
     os::task::{control_plane::WasiControlPlane, process::WasiProcess},
-    runtime::resolver::WebcIdentifier,
-    VirtualBusError, VirtualTaskManagerExt, WasiEnv, WasiRuntime,
+    runtime::resolver::PackageSpecifier,
+    Runtime, SpawnError, VirtualTaskManagerExt, WasiEnv,
 };
 
 <span class="attribute">#[derive(Derivative)]
@@ -330,18 +348,16 @@
     no_welcome: bool,
     prompt: String,
     env: HashMap&lt;String, String&gt;,
-    runtime: Arc&lt;<span class="kw">dyn </span>WasiRuntime + Send + Sync + <span class="lifetime">&#39;static</span>&gt;,
+    runtime: Arc&lt;<span class="kw">dyn </span>Runtime + Send + Sync + <span class="lifetime">&#39;static</span>&gt;,
     stdin: ArcBoxFile,
     stdout: ArcBoxFile,
     stderr: ArcBoxFile,
     capabilities: Capabilities,
+    memfs_memory_limiter: <span class="prelude-ty">Option</span>&lt;virtual_fs::limiter::DynFsMemoryLimiter&gt;,
 }
 
 <span class="kw">impl </span>Console {
-    <span class="kw">pub fn </span>new(
-        webc_boot_package: <span class="kw-2">&amp;</span>str,
-        runtime: Arc&lt;<span class="kw">dyn </span>WasiRuntime + Send + Sync + <span class="lifetime">&#39;static</span>&gt;,
-    ) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub fn </span>new(webc_boot_package: <span class="kw-2">&amp;</span>str, runtime: Arc&lt;<span class="kw">dyn </span>Runtime + Send + Sync + <span class="lifetime">&#39;static</span>&gt;) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>prog = webc_boot_package
             .split_once(<span class="string">&#39; &#39;</span>)
             .map(|a| a.<span class="number">1</span>)
@@ -365,6 +381,7 @@
             stdout: ArcBoxFile::new(Box::new(Pipe::channel().<span class="number">0</span>)),
             stderr: ArcBoxFile::new(Box::new(Pipe::channel().<span class="number">0</span>)),
             capabilities: Default::default(),
+            memfs_memory_limiter: <span class="prelude-val">None</span>,
         }
     }
 
@@ -427,7 +444,15 @@
         <span class="self">self
     </span>}
 
-    <span class="kw">pub fn </span>run(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(TaskJoinHandle, WasiProcess), VirtualBusError&gt; {
+    <span class="kw">pub fn </span>with_mem_fs_memory_limiter(
+        <span class="kw-2">mut </span><span class="self">self</span>,
+        limiter: virtual_fs::limiter::DynFsMemoryLimiter,
+    ) -&gt; <span class="self">Self </span>{
+        <span class="self">self</span>.memfs_memory_limiter = <span class="prelude-val">Some</span>(limiter);
+        <span class="self">self
+    </span>}
+
+    <span class="kw">pub fn </span>run(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(TaskJoinHandle, WasiProcess), SpawnError&gt; {
         <span class="comment">// Extract the program name from the arguments
         </span><span class="kw">let </span>empty_args: Vec&lt;<span class="kw-2">&amp;</span>[u8]&gt; = Vec::new();
         <span class="kw">let </span>(webc, prog, args) = <span class="kw">match </span><span class="self">self</span>.boot_cmd.split_once(<span class="string">&#39; &#39;</span>) {
@@ -447,7 +472,7 @@
         };
         <span class="kw">let </span>envs = <span class="self">self</span>.env.clone();
 
-        <span class="comment">// Build a new store that will be passed to the thread
+        <span class="comment">// Build a new store that will be passed to the threadimpo
         </span><span class="kw">let </span>store = <span class="self">self</span>.runtime.new_store();
 
         <span class="kw">let </span>root_fs = RootFileSystemBuilder::new()
@@ -472,10 +497,22 @@
             .capabilities(<span class="self">self</span>.capabilities.clone())
             .build_init()
             <span class="comment">// TODO: propagate better error
-            </span>.map_err(|_e| VirtualBusError::InternalError)<span class="question-mark">?</span>;
+            </span>.map_err(|_e| SpawnError::InternalError)<span class="question-mark">?</span>;
 
         <span class="comment">// TODO: no unwrap!
         </span><span class="kw">let </span>env = WasiEnv::from_init(env_init).unwrap();
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(limiter) = <span class="kw-2">&amp;</span><span class="self">self</span>.memfs_memory_limiter {
+            <span class="kw">match </span><span class="kw-2">&amp;</span>env.state.fs.root_fs {
+                <span class="kw">crate</span>::fs::WasiFsRoot::Sandbox(tmpfs) =&gt; {
+                    tmpfs.set_memory_limiter(limiter.clone());
+                }
+                <span class="kw">crate</span>::fs::WasiFsRoot::Backing(<span class="kw">_</span>) =&gt; {
+                    <span class="macro">tracing::error!</span>(<span class="string">&quot;tried to set a tmpfs memory limiter on a backing fs&quot;</span>);
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(SpawnError::BadRequest);
+                }
+            }
+        }
 
         <span class="comment">// TODO: this should not happen here...
         // Display the welcome message
@@ -484,38 +521,37 @@
             tasks.block_on(<span class="self">self</span>.draw_welcome());
         }
 
-        <span class="kw">let </span>webc_ident: WebcIdentifier = <span class="kw">match </span>webc.parse() {
+        <span class="kw">let </span>webc_ident: PackageSpecifier = <span class="kw">match </span>webc.parse() {
             <span class="prelude-val">Ok</span>(ident) =&gt; ident,
             <span class="prelude-val">Err</span>(e) =&gt; {
                 <span class="macro">tracing::debug!</span>(webc, error = <span class="kw-2">&amp;*</span>e, <span class="string">&quot;Unable to parse the WEBC identifier&quot;</span>);
-                <span class="kw">return </span><span class="prelude-val">Err</span>(VirtualBusError::BadRequest);
+                <span class="kw">return </span><span class="prelude-val">Err</span>(SpawnError::BadRequest);
             }
         };
-        <span class="kw">let </span>client = <span class="self">self
-            </span>.runtime
-            .http_client()
-            .ok_or(VirtualBusError::UnknownError)<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>resolved_package = tasks.block_on(
-            <span class="self">self</span>.runtime
-                .package_resolver()
-                .resolve_package(<span class="kw-2">&amp;</span>webc_ident, <span class="kw-2">&amp;</span>client),
-        );
+        <span class="kw">let </span>resolved_package =
+            tasks.block_on(BinaryPackage::from_registry(<span class="kw-2">&amp;</span>webc_ident, env.runtime()));
 
-        <span class="kw">let </span>binary = <span class="kw">if let </span><span class="prelude-val">Ok</span>(binary) = resolved_package {
-            binary
-        } <span class="kw">else </span>{
-            <span class="kw">let </span><span class="kw-2">mut </span>stderr = <span class="self">self</span>.stderr.clone();
-            tasks.block_on(<span class="kw">async </span>{
-                virtual_fs::AsyncWriteExt::write_all(
-                    <span class="kw-2">&amp;mut </span>stderr,
-                    <span class="macro">format!</span>(<span class="string">&quot;package not found [{}]\r\n&quot;</span>, webc).as_bytes(),
-                )
-                .<span class="kw">await
-                </span>.ok();
-            });
-            <span class="macro">tracing::debug!</span>(<span class="string">&quot;failed to get webc dependency - {}&quot;</span>, webc);
-            <span class="kw">return </span><span class="prelude-val">Err</span>(VirtualBusError::NotFound);
+        <span class="kw">let </span>binary = <span class="kw">match </span>resolved_package {
+            <span class="prelude-val">Ok</span>(pkg) =&gt; pkg,
+            <span class="prelude-val">Err</span>(e) =&gt; {
+                <span class="kw">let </span><span class="kw-2">mut </span>stderr = <span class="self">self</span>.stderr.clone();
+                tasks.block_on(<span class="kw">async </span>{
+                    <span class="kw">let </span><span class="kw-2">mut </span>buffer = Vec::new();
+                    <span class="macro">writeln!</span>(buffer, <span class="string">&quot;Error: {e}&quot;</span>).ok();
+                    <span class="kw">let </span><span class="kw-2">mut </span>source = e.source();
+                    <span class="kw">while let </span><span class="prelude-val">Some</span>(s) = source {
+                        <span class="macro">writeln!</span>(buffer, <span class="string">&quot;  Caused by: {s}&quot;</span>).ok();
+                        source = s.source();
+                    }
+
+                    virtual_fs::AsyncWriteExt::write_all(<span class="kw-2">&amp;mut </span>stderr, <span class="kw-2">&amp;</span>buffer)
+                        .<span class="kw">await
+                        </span>.ok();
+                });
+                <span class="macro">tracing::debug!</span>(<span class="string">&quot;failed to get webc dependency - {}&quot;</span>, webc);
+                <span class="kw">return </span><span class="prelude-val">Err</span>(SpawnError::NotFound);
+            }
         };
 
         <span class="kw">let </span>wasi_process = env.process.clone();
@@ -535,7 +571,7 @@
                 </span>.ok();
             });
             <span class="macro">tracing::debug!</span>(<span class="string">&quot;failed to load used dependency - {}&quot;</span>, err);
-            <span class="kw">return </span><span class="prelude-val">Err</span>(VirtualBusError::BadRequest);
+            <span class="kw">return </span><span class="prelude-val">Err</span>(SpawnError::BadRequest);
         }
 
         <span class="comment">// Build the config

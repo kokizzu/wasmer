@@ -151,13 +151,11 @@
 <span id="149">149</span>
 <span id="150">150</span>
 <span id="151">151</span>
-<span id="152">152</span>
-<span id="153">153</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{any::Any, sync::Arc};
 
 <span class="kw">use crate</span>::{
     os::task::{OwnedTaskStatus, TaskJoinHandle},
-    VirtualBusError,
+    SpawnError,
 };
 <span class="kw">use </span>wasmer::{FunctionEnvMut, Store};
 <span class="kw">use </span>wasmer_wasix_types::wasi::Errno;
@@ -165,7 +163,7 @@
 <span class="kw">use crate</span>::{
     bin_factory::{spawn_exec, BinaryPackage},
     syscalls::stderr_write,
-    VirtualTaskManagerExt, WasiEnv, WasiRuntime,
+    Runtime, VirtualTaskManagerExt, WasiEnv,
 };
 
 <span class="kw">const </span>HELP: <span class="kw-2">&amp;</span>str = <span class="string">r#&quot;USAGE:
@@ -190,13 +188,13 @@ ARGS:
 
 <span class="attribute">#[derive(Debug, Clone)]
 </span><span class="kw">pub struct </span>CmdWasmer {
-    runtime: Arc&lt;<span class="kw">dyn </span>WasiRuntime + Send + Sync + <span class="lifetime">&#39;static</span>&gt;,
+    runtime: Arc&lt;<span class="kw">dyn </span>Runtime + Send + Sync + <span class="lifetime">&#39;static</span>&gt;,
 }
 
 <span class="kw">impl </span>CmdWasmer {
     <span class="kw">const </span>NAME: <span class="kw-2">&amp;</span>str = <span class="string">&quot;wasmer&quot;</span>;
 
-    <span class="kw">pub fn </span>new(runtime: Arc&lt;<span class="kw">dyn </span>WasiRuntime + Send + Sync + <span class="lifetime">&#39;static</span>&gt;) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub fn </span>new(runtime: Arc&lt;<span class="kw">dyn </span>Runtime + Send + Sync + <span class="lifetime">&#39;static</span>&gt;) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{ runtime }
     }
 }
@@ -210,15 +208,15 @@ ARGS:
         config: <span class="kw-2">&amp;mut </span><span class="prelude-ty">Option</span>&lt;WasiEnv&gt;,
         what: <span class="prelude-ty">Option</span>&lt;String&gt;,
         <span class="kw-2">mut </span>args: Vec&lt;String&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;TaskJoinHandle, VirtualBusError&gt; {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;TaskJoinHandle, SpawnError&gt; {
         <span class="comment">// If the first argument is a &#39;--&#39; then skip it
         </span><span class="kw">if </span>args.first().map(|a| a.as_str()) == <span class="prelude-val">Some</span>(<span class="string">&quot;--&quot;</span>) {
             args = args.into_iter().skip(<span class="number">1</span>).collect();
         }
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(what) = what {
-            <span class="kw">let </span>store = store.take().ok_or(VirtualBusError::UnknownError)<span class="question-mark">?</span>;
-            <span class="kw">let </span><span class="kw-2">mut </span>env = config.take().ok_or(VirtualBusError::UnknownError)<span class="question-mark">?</span>;
+            <span class="kw">let </span>store = store.take().ok_or(SpawnError::UnknownError)<span class="question-mark">?</span>;
+            <span class="kw">let </span><span class="kw-2">mut </span>env = config.take().ok_or(SpawnError::UnknownError)<span class="question-mark">?</span>;
 
             <span class="comment">// Set the arguments of the environment by replacing the state
             </span><span class="kw">let </span><span class="kw-2">mut </span>state = env.state.fork();
@@ -226,7 +224,7 @@ ARGS:
             state.args = args;
             env.state = Arc::new(state);
 
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(binary) = <span class="self">self</span>.get_package(what.clone()).<span class="kw">await </span>{
+            <span class="kw">if let </span><span class="prelude-val">Ok</span>(binary) = <span class="self">self</span>.get_package(<span class="kw-2">&amp;</span>what).<span class="kw">await </span>{
                 <span class="comment">// Now run the module
                 </span>spawn_exec(binary, name, store, env, <span class="kw-2">&amp;</span><span class="self">self</span>.runtime).<span class="kw">await
             </span>} <span class="kw">else </span>{
@@ -248,12 +246,10 @@ ARGS:
         }
     }
 
-    <span class="kw">pub async fn </span>get_package(<span class="kw-2">&amp;</span><span class="self">self</span>, name: String) -&gt; <span class="prelude-ty">Option</span>&lt;BinaryPackage&gt; {
-        <span class="kw">let </span>resolver = <span class="self">self</span>.runtime.package_resolver();
-        <span class="kw">let </span>client = <span class="self">self</span>.runtime.http_client()<span class="question-mark">?</span>;
-        <span class="kw">let </span>pkg = name.parse().ok()<span class="question-mark">?</span>;
-        resolver.resolve_package(<span class="kw-2">&amp;</span>pkg, <span class="kw-2">&amp;</span>client).<span class="kw">await</span>.ok()
-    }
+    <span class="kw">pub async fn </span>get_package(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;BinaryPackage, anyhow::Error&gt; {
+        <span class="kw">let </span>specifier = name.parse()<span class="question-mark">?</span>;
+        BinaryPackage::from_registry(<span class="kw-2">&amp;</span>specifier, <span class="kw-2">&amp;*</span><span class="self">self</span>.runtime).<span class="kw">await
+    </span>}
 }
 
 <span class="kw">impl </span>VirtualCommand <span class="kw">for </span>CmdWasmer {
@@ -271,9 +267,9 @@ ARGS:
         name: <span class="kw-2">&amp;</span>str,
         store: <span class="kw-2">&amp;mut </span><span class="prelude-ty">Option</span>&lt;Store&gt;,
         env: <span class="kw-2">&amp;mut </span><span class="prelude-ty">Option</span>&lt;WasiEnv&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;TaskJoinHandle, VirtualBusError&gt; {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;TaskJoinHandle, SpawnError&gt; {
         <span class="comment">// Read the command we want to run
-        </span><span class="kw">let </span>env_inner = env.as_ref().ok_or(VirtualBusError::UnknownError)<span class="question-mark">?</span>;
+        </span><span class="kw">let </span>env_inner = env.as_ref().ok_or(SpawnError::UnknownError)<span class="question-mark">?</span>;
         <span class="kw">let </span>args = env_inner.state.args.clone();
         <span class="kw">let </span><span class="kw-2">mut </span>args = args.iter().map(|s| s.as_str());
         <span class="kw">let </span>_alias = args.next();

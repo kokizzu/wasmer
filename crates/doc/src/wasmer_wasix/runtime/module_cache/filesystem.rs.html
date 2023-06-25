@@ -230,7 +230,6 @@
 <a href="#229" id="229">229</a>
 <a href="#230" id="230">230</a>
 <a href="#231" id="231">231</a>
-<a href="#232" id="232">232</a>
 </pre><pre class="rust"><code><span class="kw">use </span>std::path::{Path, PathBuf};
 
 <span class="kw">use </span>tempfile::NamedTempFile;
@@ -252,12 +251,6 @@
         }
     }
 
-    <span class="doccomment">/// Get the directory that is typically used when caching compiled
-    /// packages inside `$WASMER_DIR`.
-    </span><span class="kw">pub fn </span>default_cache_dir(wasmer_dir: <span class="kw">impl </span>AsRef&lt;Path&gt;) -&gt; PathBuf {
-        wasmer_dir.as_ref().join(<span class="string">&quot;compiled&quot;</span>)
-    }
-
     <span class="kw">pub fn </span>cache_dir(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>Path {
         <span class="kw-2">&amp;</span><span class="self">self</span>.cache_dir
     }
@@ -273,7 +266,8 @@
 
 <span class="attr">#[async_trait::async_trait]
 </span><span class="kw">impl </span>ModuleCache <span class="kw">for </span>FileSystemCache {
-    <span class="kw">async fn </span>load(<span class="kw-2">&amp;</span><span class="self">self</span>, key: ModuleHash, engine: <span class="kw-2">&amp;</span>Engine) -&gt; <span class="prelude-ty">Result</span>&lt;Module, CacheError&gt; {
+    <span class="attr">#[tracing::instrument(level = <span class="string">&quot;debug&quot;</span>, skip_all, fields(%key))]
+    </span><span class="kw">async fn </span>load(<span class="kw-2">&amp;</span><span class="self">self</span>, key: ModuleHash, engine: <span class="kw-2">&amp;</span>Engine) -&gt; <span class="prelude-ty">Result</span>&lt;Module, CacheError&gt; {
         <span class="kw">let </span>path = <span class="self">self</span>.path(key, engine.deterministic_id());
 
         <span class="comment">// FIXME: This will all block the thread at the moment. Ideally,
@@ -285,7 +279,10 @@
 
         <span class="kw">let </span>res = <span class="kw">unsafe </span>{ Module::deserialize(<span class="kw-2">&amp;</span>engine, uncompressed) };
         <span class="kw">match </span>res {
-            <span class="prelude-val">Ok</span>(m) =&gt; <span class="prelude-val">Ok</span>(m),
+            <span class="prelude-val">Ok</span>(m) =&gt; {
+                <span class="macro">tracing::debug!</span>(<span class="string">&quot;Cache hit!&quot;</span>);
+                <span class="prelude-val">Ok</span>(m)
+            }
             <span class="prelude-val">Err</span>(e) =&gt; {
                 <span class="macro">tracing::debug!</span>(
                     %key,
@@ -308,7 +305,8 @@
         }
     }
 
-    <span class="kw">async fn </span>save(
+    <span class="attr">#[tracing::instrument(level = <span class="string">&quot;debug&quot;</span>, skip_all, fields(%key))]
+    </span><span class="kw">async fn </span>save(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         key: ModuleHash,
         engine: <span class="kw-2">&amp;</span>Engine,

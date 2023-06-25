@@ -551,7 +551,6 @@
 <a href="#550" id="550">550</a>
 <a href="#551" id="551">551</a>
 <a href="#552" id="552">552</a>
-<a href="#553" id="553">553</a>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{
     fmt::Write <span class="kw">as _</span>,
     io::Write,
@@ -570,7 +569,8 @@
 <span class="kw">use crate</span>::{
     http::{HttpClient, HttpRequest},
     runtime::resolver::{
-        DistributionInfo, PackageInfo, PackageSpecifier, PackageSummary, Source, WebcHash,
+        DistributionInfo, PackageInfo, PackageSpecifier, PackageSummary, QueryError, Source,
+        WebcHash,
     },
 };
 
@@ -613,12 +613,6 @@
             retry_period,
             ..<span class="self">self
         </span>}
-    }
-
-    <span class="doccomment">/// Get the directory that is typically used when caching downloaded
-    /// packages inside `$WASMER_DIR`.
-    </span><span class="kw">pub fn </span>default_cache_dir(wasmer_dir: <span class="kw">impl </span>AsRef&lt;Path&gt;) -&gt; PathBuf {
-        wasmer_dir.as_ref().join(<span class="string">&quot;downloads&quot;</span>)
     }
 
     <span class="doccomment">/// Download a package and cache it locally.
@@ -788,10 +782,10 @@
 <span class="attr">#[async_trait::async_trait]
 </span><span class="kw">impl </span>Source <span class="kw">for </span>WebSource {
     <span class="attr">#[tracing::instrument(level = <span class="string">&quot;debug&quot;</span>, skip_all, fields(%package))]
-    </span><span class="kw">async fn </span>query(<span class="kw-2">&amp;</span><span class="self">self</span>, package: <span class="kw-2">&amp;</span>PackageSpecifier) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;PackageSummary&gt;, Error&gt; {
+    </span><span class="kw">async fn </span>query(<span class="kw-2">&amp;</span><span class="self">self</span>, package: <span class="kw-2">&amp;</span>PackageSpecifier) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;PackageSummary&gt;, QueryError&gt; {
         <span class="kw">let </span>url = <span class="kw">match </span>package {
             PackageSpecifier::Url(url) =&gt; url,
-            <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>(Vec::new()),
+            <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(QueryError::Unsupported),
         };
 
         <span class="kw">let </span>local_path = <span class="self">self
@@ -800,12 +794,16 @@
             </span>.context(<span class="string">&quot;Unable to get the locally cached file&quot;</span>)<span class="question-mark">?</span>;
 
         <span class="comment">// FIXME: this will block
-        </span><span class="kw">let </span>webc_sha256 = WebcHash::for_file(<span class="kw-2">&amp;</span>local_path)<span class="question-mark">?</span>;
+        </span><span class="kw">let </span>webc_sha256 = WebcHash::for_file(<span class="kw-2">&amp;</span>local_path)
+            .with_context(|| <span class="macro">format!</span>(<span class="string">&quot;Unable to hash \&quot;{}\&quot;&quot;</span>, local_path.display()))<span class="question-mark">?</span>;
 
         <span class="comment">// Note: We want to use Container::from_disk() rather than the bytes
         // our HTTP client gave us because then we can use memory-mapped files
-        </span><span class="kw">let </span>container = Container::from_disk(<span class="kw-2">&amp;</span>local_path)<span class="question-mark">?</span>;
-        <span class="kw">let </span>pkg = PackageInfo::from_manifest(container.manifest())<span class="question-mark">?</span>;
+        </span><span class="kw">let </span>container = Container::from_disk(<span class="kw-2">&amp;</span>local_path)
+            .with_context(|| <span class="macro">format!</span>(<span class="string">&quot;Unable to load \&quot;{}\&quot;&quot;</span>, local_path.display()))<span class="question-mark">?</span>;
+        <span class="kw">let </span>pkg = PackageInfo::from_manifest(container.manifest())
+            .context(<span class="string">&quot;Unable to determine the package&#39;s metadata&quot;</span>)<span class="question-mark">?</span>;
+
         <span class="kw">let </span>dist = DistributionInfo {
             webc: url.clone(),
             webc_sha256,
